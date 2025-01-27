@@ -1,0 +1,71 @@
+[jack]
+client_name = "Synth"
+port_name = "output"
+destination_l_port_name = "system:playback_1"
+destination_r_port_name = "system:playback_2"
+
+[synth.stops]
+"16' Subbass" = { frequency_ratio = 0.5, waveform = "triangle", amplitude_ratio = 0.8 }
+"8' Principal" = { frequency_ratio = 1.0, waveform = "triangle", amplitude_ratio = 1.0 }
+"4' Octave" = { frequency_ratio = 2.0, waveform = "triangle", amplitude_ratio = 0.8 }
+"2 2/3' Fifth" = { frequency_ratio = 3.0, waveform = "triangle", amplitude_ratio = 0.6 }
+"1 3/5' Tierce" = { frequency_ratio = 5.0, waveform = "triangle", amplitude_ratio = 0.4 }
+"16' Flute" = { frequency_ratio = 0.5, waveform = "sine", amplitude_ratio = 0.8 }
+"8' Flute" = { frequency_ratio = 1.0, waveform = "sine", amplitude_ratio = 0.6 }
+"4' Flute" = { frequency_ratio = 2.0, waveform = "sine", amplitude_ratio = 0.4 }
+
+
+[synth.presets."Pedalboard"]
+midi_identifier = 20
+stops = [
+    "16' Subbass",
+    "8' Principal",
+]
+
+[synth.presets."Manual"]
+midi_identifier = 21
+stops = [
+    "8' Principal",
+    "4' Octave",
+]
+
+[synth.presets."Organo Pleno"]
+midi_identifier = 22
+stops = [
+    "16' Subbass",
+    "8' Principal",
+    "4' Octave",
+]
+
+
+[synth.presets."Mixture"]
+midi_identifier = 23
+stops = [
+    "16' Subbass",
+    "8' Principal",
+    "4' Octave",
+    "2 2/3' Fifth",
+    "1 3/5' Tierce"
+]
+
+[synth.presets."Manual Flute"]
+midi_identifier = 24
+stops = [
+    "8' Flute",
+    "4' Flute"
+]
+
+[synth.presets."Pedalboard Flute"]
+midi_identifier = 25
+stops = [
+    "16' Flute",
+    "8' Flute"
+]
+
+[[synth.preset_defaults]]
+midi_channel = 1
+preset_name = "Manual"
+
+[[synth.preset_defaults]]
+midi_channel = 2
+preset_name = "Pedalboard"

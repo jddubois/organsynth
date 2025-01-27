@@ -1,12 +1,15 @@
-use crate::waveform::Waveform;
+use super::{stop::Stop, waveform::Waveform};
+
+// TODO CLEAN UP THIS FILE!
 
 pub struct Oscillator {
     phase: f32,
     pub frequency: f32,
     sample_rate: f32,
-    pub envelope: Envelope,
+    envelope: Envelope,
     waveform: Waveform,
     amp: f32,
+    pub is_released: bool,
 }
 
 // TODO is this good?
@@ -17,14 +20,25 @@ fn detune(frequency: f32) -> f32 {
 }
 
 impl Oscillator {
+    pub fn from_stop(stop: &Stop, frequency: f32, sample_rate: f32) -> Self {
+        Self::new(
+            frequency * stop.frequency_ratio,
+            sample_rate,
+            stop.waveform,
+            stop.amplitude_ratio,
+        )
+    }
+
     pub fn new(frequency: f32, sample_rate: f32, waveform: Waveform, amp: f32) -> Self {
+        println!("Oscillator::new({}, {})", frequency, amp);
         Self {
-            phase: rand::random(),
+            phase: 0.0, //rand::random(),
             frequency: detune(frequency),
             sample_rate,
             envelope: Envelope::new(sample_rate, frequency),
             waveform,
             amp: amp * iso_equal_loudness(frequency),
+            is_released: false,
         }
     }
 
@@ -36,10 +50,18 @@ impl Oscillator {
 
     pub fn release(&mut self) {
         self.envelope.trigger_release();
+        self.is_released = true;
     }
 
     pub fn is_finished(&self) -> bool {
         self.envelope.is_finished()
+    }
+
+    // TODO maybe clean this?
+    pub fn matches_stop(&self, stop: &Stop, frequency: f32) -> bool {
+        self.frequency == frequency * stop.frequency_ratio
+            && self.waveform == stop.waveform
+            && self.amp == stop.amplitude_ratio * iso_equal_loudness(frequency)
     }
 
     fn advance_phase(&mut self) {
@@ -50,36 +72,36 @@ impl Oscillator {
 
 fn iso_equal_loudness(frequency: f32) -> f32 {
     // Constants for the frequency range
-    // const MIN_FREQ: f32 = 20.0; // Lowest audible frequency
-    // const MAX_FREQ: f32 = 20000.0; // Highest audible frequency
-    // const GAIN_FOR_MIN_FREQ: f32 = 0.01; // Minimum gain for the highest frequencies
-    // const GAIN_FOR_MAX_FREQ: f32 = 1.0; // Maximum gain for the lowest frequencies
+    const MIN_FREQ: f32 = 20.0; // Lowest audible frequency
+    const MAX_FREQ: f32 = 12500.0; // Highest audible frequency
+    const GAIN_FOR_MIN_FREQ: f32 = 0.01; // Minimum gain for the highest frequencies
+    const GAIN_FOR_MAX_FREQ: f32 = 1.0; // Maximum gain for the lowest frequencies
 
-    // // Clamp frequency to the audible range
-    // let clamped_freq = frequency.clamp(MIN_FREQ, MAX_FREQ);
+    // Clamp frequency to the audible range
+    let clamped_freq = frequency.clamp(MIN_FREQ, MAX_FREQ);
 
-    // // Normalize frequency logarithmically
-    // let log_min = MIN_FREQ.ln();
-    // let log_max = MAX_FREQ.ln();
-    // let log_freq = clamped_freq.ln();
-    // let normalized_freq = (log_freq - log_min) / (log_max - log_min);
+    // Normalize frequency logarithmically
+    let log_min = MIN_FREQ.ln();
+    let log_max = MAX_FREQ.ln();
+    let log_freq = clamped_freq.ln();
+    let normalized_freq = (log_freq - log_min) / (log_max - log_min);
 
-    // // Apply exponential interpolation
-    // let x = GAIN_FOR_MAX_FREQ * (GAIN_FOR_MIN_FREQ / GAIN_FOR_MAX_FREQ).powf(normalized_freq);
+    // Apply exponential interpolation
+    let x = GAIN_FOR_MAX_FREQ * (GAIN_FOR_MIN_FREQ / GAIN_FOR_MAX_FREQ).powf(normalized_freq);
     // println!("iso_equal_loudness: {} -> {}", frequency, x);
-    // x
+    x
     // 1.0
 
     // We only handle the range [20, 20000] smoothly.
     // Frequencies outside this range are clamped at the boundary.
-    let f = frequency.clamp(20.0, 20_000.0);
+    // let f = frequency.clamp(20.0, 20_000.0);
 
-    // This power-law curve goes from 1.0 at 20 Hz down to 0.1 at 20 kHz.
-    // g(f) = (20 / f)^(1/3).
-    let gain = (20.0 / f).powf(1.0 / 3.0);
+    // // This power-law curve goes from 1.0 at 20 Hz down to 0.1 at 20 kHz.
+    // // g(f) = (20 / f)^(1/3).
+    // let gain = (20.0 / f).powf(1.0 / 3.0);
 
-    // gain is guaranteed to be in [0.1, 1.0], so no extra clamp needed.
-    gain
+    // // gain is guaranteed to be in [0.1, 1.0], so no extra clamp needed.
+    // gain
     // 1.0
 }
 

@@ -14,7 +14,7 @@ impl JackHandler {
 }
 
 impl ProcessHandler for JackHandler {
-    fn process(&mut self, c: &Client, ps: &ProcessScope) -> jack::Control {
+    fn process(&mut self, _: &Client, ps: &ProcessScope) -> jack::Control {
         let mut synth = self.synth.lock().unwrap();
         let out: &mut [f32] = self.port.as_mut_slice(ps);
         out.iter_mut().for_each(|sample| {

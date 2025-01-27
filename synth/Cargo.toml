@@ -1,0 +1,11 @@
+[package]
+name = "organsynth"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+jack = "0.13"
+midir = "0.10"
+rand = "0.8"
+toml = "0.8"
+serde = { version = "1.0", features = ["derive"] }

@@ -1,4 +1,4 @@
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Waveform {
     Sine,
     Square,
@@ -6,7 +6,18 @@ pub enum Waveform {
     Triangle,
 }
 
+// TODO clean up this file!
 impl Waveform {
+    pub fn parse(waveform: &str) -> Self {
+        match waveform {
+            "sine" => Waveform::Sine,
+            "square" => Waveform::Square,
+            "sawtooth" => Waveform::Sawtooth,
+            "triangle" => Waveform::Triangle,
+            _ => Waveform::Sine,
+        }
+    }
+
     pub fn generate_sample(&self, phase: f32, frequency: f32) -> f32 {
         match self {
             Waveform::Sine => Self::generate_sine_sample(phase),
@@ -45,6 +56,8 @@ impl Waveform {
 
         // Blend factor is the normalized logarithmic value
         let blend_factor = normalized_freq;
+
+        // println!("Freq: {} Blend factor: {}", frequency, blend_factor);
 
         // 2. Generate the two waveforms:
         let sine = (phase * 2.0 * std::f32::consts::PI).sin();
