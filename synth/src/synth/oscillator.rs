@@ -30,7 +30,12 @@ impl Oscillator {
     }
 
     pub fn new(frequency: f32, sample_rate: f32, waveform: Waveform, amp: f32) -> Self {
-        println!("Oscillator::new({}, {})", frequency, amp);
+        println!(
+            "Oscillator::new({}, {}, {})",
+            frequency,
+            amp,
+            waveform.str()
+        );
         Self {
             phase: 0.0, //rand::random(),
             frequency: detune(frequency),

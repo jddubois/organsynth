@@ -1,6 +1,8 @@
 import express, { type Request, type Response } from "express";
 import midi from "midi";
 import cors from 'cors';
+import fs from 'fs';
+import TOML from 'smol-toml'
 
 declare global {
   namespace Express {
@@ -31,6 +33,12 @@ app.post("/midi", (req: Request, res: Response) => {
   console.log(JSON.stringify({ message }))
   req.midi.sendMessage(message);
   res.sendStatus(200)
+});
+
+app.get("/config", (req: Request, res: Response) => {
+  const toml = fs.readFileSync('../Config.toml', 'utf8')
+  const { synth } =  TOML.parse(toml)
+  res.json(synth);
 });
 
 app.listen(PORT, HOST, () => {

@@ -1,5 +1,6 @@
-use super::{filters::Filter, note::Note, stop::Stop, waveform::Waveform};
+use super::{filters::Filter, note::Note, stop::Stop};
 
+// TODO this file needs to be renamed
 pub struct InternalSynth {
     sample_rate: f32,
     filters: Vec<Box<dyn Filter>>,
@@ -17,8 +18,8 @@ impl InternalSynth {
                 Box::new(super::filters::SimpleReverb::new(
                     sample_rate,
                     100.0,
-                    0.5,
-                    0.5,
+                    0.4,
+                    0.4,
                 )),
             ],
             stops,

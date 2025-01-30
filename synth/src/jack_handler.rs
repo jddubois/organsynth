@@ -1,29 +1,43 @@
 use crate::synth::Synth;
-use jack::{AudioOut, Client, Port, ProcessHandler, ProcessScope};
+use jack::{AudioOut, Client, MidiIn, Port, ProcessHandler, ProcessScope};
 use std::sync::{Arc, Mutex};
 
 pub struct JackHandler {
-    port: Port<AudioOut>,
     synth: Arc<Mutex<Synth>>,
+    midi_in_port: Port<MidiIn>,
+    audio_out_port: Port<AudioOut>,
 }
 
 impl JackHandler {
-    pub fn new(port: Port<AudioOut>, synth: Arc<Mutex<Synth>>) -> Self {
-        Self { port, synth }
+    pub fn new(
+        synth: Arc<Mutex<Synth>>,
+        midi_in_port: Port<MidiIn>,
+        audio_out_port: Port<AudioOut>,
+    ) -> Self {
+        Self {
+            synth,
+            midi_in_port,
+            audio_out_port,
+        }
     }
 }
 
 impl ProcessHandler for JackHandler {
     fn process(&mut self, _: &Client, ps: &ProcessScope) -> jack::Control {
         let mut synth = self.synth.lock().unwrap();
-        let out: &mut [f32] = self.port.as_mut_slice(ps);
-        out.iter_mut().for_each(|sample| {
-            let s = synth.next_sample();
-            if s > 1.0 {
-                println!("Clipping: {}", s);
-            }
-            *sample = s.min(1.0);
-        });
+        self.midi_in_port
+            .iter(ps)
+            .for_each(|event: jack::RawMidi<'_>| {
+                if let Ok(midi) = <&[u8; 3]>::try_from(event.bytes) {
+                    synth.send_midi(*midi);
+                }
+            });
+        self.audio_out_port
+            .as_mut_slice(ps)
+            .iter_mut()
+            .for_each(|sample| {
+                *sample = synth.next_sample();
+            });
         jack::Control::Continue
     }
 }

@@ -23,6 +23,9 @@ impl Note {
     }
 
     pub fn use_preset(&mut self, stops: &[Stop]) {
+        if self.is_released {
+            return;
+        }
         self.oscillators = stops
             .iter()
             .map(|stop| Oscillator::from_stop(stop, self.frequency, self.sample_rate))

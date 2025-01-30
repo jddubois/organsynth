@@ -11,6 +11,7 @@ pub struct Message {
     pub channel: u8,
     pub kind: MessageKind,
     pub identifier: u8,
+    pub value: u8,
 }
 
 impl Message {
@@ -26,11 +27,8 @@ impl Message {
     }
 }
 
-pub fn try_parse(data: &[u8]) -> Result<Message, String> {
-    let (status, identifier) = match data {
-        [status, identifier, _] => (status, *identifier),
-        _ => return Err(format!("Unsupported MIDI message length: {}", data.len())),
-    };
+pub fn try_parse(data: &[u8; 3]) -> Result<Message, String> {
+    let [status, identifier, value] = *data;
     let raw_kind = status & 0xF0;
     let kind = match raw_kind {
         0x80 => MessageKind::NoteOff,
@@ -44,6 +42,7 @@ pub fn try_parse(data: &[u8]) -> Result<Message, String> {
         channel,
         kind,
         identifier,
+        value,
     })
 }
 

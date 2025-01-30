@@ -1,7 +1,7 @@
 use super::waveform::Waveform;
 use crate::config::StopConfig;
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Stop {
     pub waveform: Waveform,
     pub frequency_ratio: f32,

@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Waveform {
     Sine,
     Square,
@@ -8,6 +8,14 @@ pub enum Waveform {
 
 // TODO clean up this file!
 impl Waveform {
+    pub fn str(&self) -> &str {
+        match self {
+            Waveform::Sine => "sine",
+            Waveform::Square => "square",
+            Waveform::Sawtooth => "sawtooth",
+            Waveform::Triangle => "triangle",
+        }
+    }
     pub fn parse(waveform: &str) -> Self {
         match waveform {
             "sine" => Waveform::Sine,
@@ -46,7 +54,7 @@ impl Waveform {
     fn generate_organ_sample(phase: f32, frequency: f32) -> f32 {
         // Parameters for the logarithmic curve
         let min_freq = 20.0; // Lowest frequency (e.g., 20 Hz)
-        let max_freq = 2000.0; // Highest frequency where the blend reaches mostly triangle
+        let max_freq = 100.0; // Highest frequency where the blend reaches mostly triangle
         let log_base = 10.0; // Base of the logarithm, can tweak for smoothness
 
         // Normalize frequency to a 0-1 range logarithmically

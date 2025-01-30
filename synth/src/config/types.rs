@@ -17,9 +17,10 @@ pub struct SynthConfig {
 #[derive(Debug, Deserialize)]
 pub struct JackConfig {
     pub client_name: String,
-    pub port_name: String,
-    pub destination_l_port_name: String,
-    pub destination_r_port_name: String,
+    pub audio_out_port_name: String,
+    pub midi_in_port_name: String,
+    pub system_audio_l_port_name: String,
+    pub system_audio_r_port_name: String,
 }
 
 #[derive(Debug, Deserialize)]
