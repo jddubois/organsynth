@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import { useConfig } from "./config";
 import _ from "lodash";
@@ -35,6 +35,49 @@ function sendCC(channel: number, controlNumber: number) {
 
 function App() {
 
+  const [volume, setVolume] = useState<number>(50);
+  const [volumeLoading, setVolumeLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const fetchVolume = async () => {
+      try {
+        const response = await fetch("http://192.168.1.21:8080/volume");
+        if (!response.ok) {
+          throw new Error(`Failed to fetch volume: ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (typeof data.volume === "number") {
+          setVolume(data.volume);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setVolumeLoading(false);
+      }
+    };
+    fetchVolume();
+  }, []);
+
+  const adjustVolume = async (direction: "up" | "down") => {
+    try {
+      const response = await fetch("http://192.168.1.21:8080/volume", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ direction }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (typeof data.volume === "number") {
+          setVolume(data.volume);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const { config, loading, error } = useConfig();
   if (loading) {
     return <p>Loading...</p>;
@@ -47,6 +90,13 @@ function App() {
 
   return (
     <>
+      <div className="card">
+        <label>Volume: {volume}%</label>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", alignItems: "center" }}>
+          <button onClick={() => adjustVolume("down")} disabled={volumeLoading || volume <= 0}>-</button>
+          <button onClick={() => adjustVolume("up")} disabled={volumeLoading || volume >= 100}>+</button>
+        </div>
+      </div>
       {_.map(config?.preset_defaults, (preset_default) => {
         return (
           <div className="card">

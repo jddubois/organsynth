@@ -4,6 +4,25 @@ pub enum Waveform {
     Square,
     Sawtooth,
     Triangle,
+    Trumpet,
+}
+
+fn sigmoid_saturation(x: f32, drive: f32) -> f32 {
+    x / (1.0 + drive * x.abs()) // Adjust `drive` to control saturation intensity
+}
+
+fn soft_clip(x: f32) -> f32 {
+    if x > 1.0 {
+        1.0
+    } else if x < -1.0 {
+        -1.0
+    } else {
+        x - (x * x * x / 3.0) // A polynomial soft-clipping function
+    }
+}
+
+fn soft_wavefold(x: f32) -> f32 {
+    (x.abs() + 0.5) % 1.0 * x.signum() // Folds the waveform gently
 }
 
 // TODO clean up this file!
@@ -14,6 +33,7 @@ impl Waveform {
             Waveform::Square => "square",
             Waveform::Sawtooth => "sawtooth",
             Waveform::Triangle => "triangle",
+            Waveform::Trumpet => "trumpet",
         }
     }
     pub fn parse(waveform: &str) -> Self {
@@ -22,6 +42,7 @@ impl Waveform {
             "square" => Waveform::Square,
             "sawtooth" => Waveform::Sawtooth,
             "triangle" => Waveform::Triangle,
+            "trumpet" => Waveform::Trumpet,
             _ => Waveform::Sine,
         }
     }
@@ -32,7 +53,28 @@ impl Waveform {
             Waveform::Square => Self::generate_square_sample(phase),
             Waveform::Sawtooth => Self::generate_sawtooth_sample(phase),
             Waveform::Triangle => Self::generate_organ_sample(phase, frequency),
+            Waveform::Trumpet => Self::generate_trumpet_sample(phase, frequency),
         }
+    }
+
+    fn generate_trumpet_sample(phase: f32, freq: f32) -> f32 {
+        // 1. Generate a Sawtooth Wave
+        let saw_wave = 2.0 * phase - 1.0;
+
+        // 2. Add a Phase-Dependent Pulse Wave (Approximating PWM)
+        let pulse_width = 0.1; // + 0.1 * (freq * 0.01).sin(); // Simulated slow modulation
+        let pulse_wave = if phase < pulse_width { 1.0 } else { -1.0 };
+
+        // 3. Mix the Saw and Pulse Waves for a Richer Harmonic Structure
+        let mix = 0.99 * saw_wave + 0.01 * pulse_wave;
+
+        // 4. Simulate Formant Filtering (Resonance at ~1.5 kHz)
+        let formant = mix * (1.0 - 0.7 * (phase * std::f32::consts::PI * 2.0).sin());
+
+        // 5. Apply Soft Saturation for a Brassy Tone
+        (saw_wave).tanh()
+        // sigmoid_saturation(saw_wave, 1.0)
+        // saw_wave.signum() * saw_wave.abs().sqrt()
     }
 
     fn generate_sine_sample(phase: f32) -> f32 {

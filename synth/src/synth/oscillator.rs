@@ -10,6 +10,7 @@ pub struct Oscillator {
     waveform: Waveform,
     amp: f32,
     pub is_released: bool,
+    filters: Vec<Box<dyn super::filters::Filter>>,
 }
 
 // TODO is this good?
@@ -42,14 +43,19 @@ impl Oscillator {
             sample_rate,
             envelope: Envelope::new(sample_rate, frequency),
             waveform,
-            amp: amp * iso_equal_loudness(frequency),
+            amp: amp * equal_loudness_multiplier(frequency),
             is_released: false,
+            filters: vec![Box::new(super::filters::LowPass::new(0.01))],
         }
     }
 
     pub fn next_sample(&mut self) -> f32 {
         self.advance_phase();
-        let wave = self.waveform.generate_sample(self.phase, self.frequency);
+        let mut wave = self.waveform.generate_sample(self.phase, self.frequency);
+
+        if self.waveform.str() == "trumpet" {
+            // wave = self.filters[0].process(wave);
+        }
         wave * self.amp * self.envelope.next()
     }
 
@@ -73,6 +79,104 @@ impl Oscillator {
         self.phase += self.frequency / self.sample_rate;
         self.phase %= 1.0;
     }
+}
+
+fn equal_loudness_multiplier(frequency: f32) -> f32 {
+    if frequency <= 0.0 {
+        return 0.0;
+    }
+
+    // First, compute the inverse A‑weighting multiplier.
+    let f: f32 = frequency;
+    let f2 = f * f;
+
+    // A‑weighting constants
+    let f1: f32 = 20.6;
+    let f2_const: f32 = 107.7;
+    let f3: f32 = 737.9;
+    let f4: f32 = 12200.0;
+    let ref_freq: f32 = 12194.0;
+
+    // Numerator: ref_freq^2 * f^4
+    let numerator = ref_freq.powi(2) * f.powi(4);
+
+    // Denominator: (f^2 + f1^2) * (f^2 + f4^2) * sqrt((f^2 + f2_const^2)*(f^2 + f3^2))
+    let denominator = (f2 + f1.powi(2))
+        * (f2 + f4.powi(2))
+        * ((f2 + f2_const.powi(2)) * (f2 + f3.powi(2))).sqrt();
+
+    // Compute A‑weighting value in dB.
+    let a_db = 20.0 * (numerator / denominator).log10();
+
+    // Inverse weighting multiplier:
+    let base_multiplier = 10_f32.powf(-a_db / 20.0);
+
+    // Now add an extra boost for high frequencies.
+    // We'll define:
+    // - A threshold frequency below which no extra boost is applied.
+    // - A maximum frequency corresponding to the top key of an 88‑key keyboard (C8 ~4186 Hz)
+    //   where we want to apply the maximum boost.
+    // - A maximum boost (in dB) that you can adjust (e.g., 3 dB).
+    const FREQ_THRESHOLD: f32 = 1000.0; // Boost starts above 1 kHz.
+    const FREQ_MAX: f32 = 4186.0; // Top note for an 88‑key keyboard.
+    const BOOST_MAX_DB: f32 = 10.0; // Maximum additional boost in dB.
+
+    // Compute boost in dB based on frequency.
+    let boost_db = if frequency <= FREQ_THRESHOLD {
+        0.0
+    } else if frequency >= FREQ_MAX {
+        BOOST_MAX_DB
+    } else {
+        // Linearly interpolate boost from 0 to BOOST_MAX_DB between FREQ_THRESHOLD and FREQ_MAX.
+        let proportion = (frequency - FREQ_THRESHOLD) / (FREQ_MAX - FREQ_THRESHOLD);
+        BOOST_MAX_DB * proportion
+    };
+
+    // Convert boost from dB to a multiplier.
+    let boost_multiplier = 10_f32.powf(boost_db / 20.0);
+
+    // The final multiplier is the product of the inverse A‑weighting multiplier and the boost.
+    // We clamp the result to 20.0 to prevent clipping on the lowest notes (since we scale by 0.05 later).
+    if base_multiplier > 20.0 {
+        println!("base_multiplier: {}", base_multiplier);
+    }
+    (base_multiplier * boost_multiplier * 0.3).min(10.0)
+}
+
+fn equal_loudness_multiplier_old(frequency: f32) -> f32 {
+    // Avoid division by zero or invalid input.
+    if frequency <= 0.0 {
+        return 0.0;
+    }
+
+    let f: f32 = frequency;
+    let f2: f32 = f * f;
+
+    // Constants based on the A-weighting specification.
+    let f1: f32 = 20.6;
+    let f2_const: f32 = 107.7;
+    let f3: f32 = 737.9;
+    let f4: f32 = 12200.0;
+    let ref_freq: f32 = 12194.0;
+
+    // Compute numerator: ref^2 * f^4
+    let numerator = ref_freq.powi(2) * f.powi(4);
+
+    // Compute denominator:
+    // (f^2 + f1^2) * (f^2 + f4^2) * sqrt((f^2 + f2_const^2) * (f^2 + f3^2))
+    let denominator = (f2 + f1.powi(2))
+        * (f2 + f4.powi(2))
+        * ((f2 + f2_const.powi(2)) * (f2 + f3.powi(2))).sqrt();
+
+    // Calculate the A-weighting value in decibels.
+    let a_db = 20.0 * (numerator / denominator).log10();
+
+    // To compensate for the frequency-dependent loudness perception, we
+    // return an amplitude multiplier that is the inverse of A-weighting:
+    // multiplier = 10^(-A(f)/20). At 1 kHz, A(1kHz) = 0 dB, so multiplier = 1.
+    let amplitude_multiplier = 10_f32.powf(-a_db / 20.0);
+
+    amplitude_multiplier
 }
 
 fn iso_equal_loudness(frequency: f32) -> f32 {

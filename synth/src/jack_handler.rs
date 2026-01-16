@@ -37,6 +37,9 @@ impl ProcessHandler for JackHandler {
             .iter_mut()
             .for_each(|sample| {
                 *sample = synth.next_sample();
+                if *sample > 1.0 {
+                    println!("Clipping: {}", sample);
+                }
             });
         jack::Control::Continue
     }

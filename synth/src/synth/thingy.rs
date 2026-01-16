@@ -14,12 +14,12 @@ impl InternalSynth {
             notes: Vec::new(),
             sample_rate,
             filters: vec![
-                Box::new(super::filters::LowPass::new(0.1)),
+                Box::new(super::filters::LowPass::new(0.2)),
                 Box::new(super::filters::SimpleReverb::new(
                     sample_rate,
                     100.0,
-                    0.4,
-                    0.4,
+                    0.3,
+                    0.3,
                 )),
             ],
             stops,
@@ -73,6 +73,6 @@ impl InternalSynth {
         for filter in self.filters.iter_mut() {
             sample = filter.process(sample);
         }
-        sample * 0.1
+        sample * 0.05
     }
 }
