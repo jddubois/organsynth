@@ -52,12 +52,6 @@ impl Oscillator {
         attack_time: f32,
         release_time: f32,
     ) -> Self {
-        println!(
-            "Oscillator::new({}, {}, {})",
-            frequency,
-            amp,
-            waveform.str()
-        );
         let detuned_freq = detune(frequency);
 
         // Random initial LFO phases so oscillators don't sync
@@ -170,9 +164,6 @@ fn equal_loudness_multiplier(frequency: f32) -> f32 {
 
     let boost_multiplier = 10_f32.powf(boost_db / 20.0);
 
-    if base_multiplier > 20.0 {
-        println!("base_multiplier: {}", base_multiplier);
-    }
     (base_multiplier * boost_multiplier * 0.3).min(10.0)
 }
 

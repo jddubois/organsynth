@@ -10,15 +10,15 @@ def all_notes_off(midiout, channel=0):
     for ch in range(16):
         midiout.send_message([0xB0 + ch, 123, 0])  # 0xB0 = Control Change, 123 = All Notes Off
 
-def send_cc(midiout, channel, cc_number):
-    """Send a MIDI CC message (value 127) on the given channel."""
-    midiout.send_message([0xB0 + channel, cc_number, 127])
+def send_cc(midiout, channel, cc_number, value=127):
+    """Send a MIDI CC message on the given channel."""
+    midiout.send_message([0xB0 + channel, cc_number, value])
 
 def main():
     parser = argparse.ArgumentParser(description="Play a MIDI file through rtmidi")
     parser.add_argument("midi_file", help="Path to the MIDI file to play")
-    parser.add_argument("--cc", action="append", metavar="CHANNEL:CC_NUMBER",
-                        help="Send MIDI CC before playback (repeatable). Format: CHANNEL:CC_NUMBER")
+    parser.add_argument("--cc", action="append", metavar="CHANNEL:CC_NUMBER[:VALUE]",
+                        help="Send MIDI CC before playback (repeatable). Format: CHANNEL:CC_NUMBER[:VALUE] (value defaults to 127)")
     args = parser.parse_args()
 
     # --- Load the MIDI file using Mido ---
@@ -43,13 +43,14 @@ def main():
     if args.cc:
         for cc_spec in args.cc:
             try:
-                channel_str, cc_str = cc_spec.split(":")
-                channel = int(channel_str)
-                cc_number = int(cc_str)
-                send_cc(midiout, channel, cc_number)
-                print(f"Sent CC {cc_number} on channel {channel}")
-            except ValueError:
-                print(f"Invalid --cc format: {cc_spec} (expected CHANNEL:CC_NUMBER)")
+                parts = cc_spec.split(":")
+                channel = int(parts[0])
+                cc_number = int(parts[1])
+                value = int(parts[2]) if len(parts) > 2 else 127
+                send_cc(midiout, channel, cc_number, value)
+                print(f"Sent CC {cc_number} value {value} on channel {channel}")
+            except (ValueError, IndexError):
+                print(f"Invalid --cc format: {cc_spec} (expected CHANNEL:CC_NUMBER[:VALUE])")
                 raise SystemExit(1)
         time.sleep(0.1)
 

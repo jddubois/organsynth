@@ -51,10 +51,16 @@ impl Chiff {
 
         let (center_freq, bandwidth) = match waveform {
             Waveform::Triangle => (frequency * freq_scale, frequency * 1.5),       // Principal: tighter bandwidth
-            Waveform::Sine => (frequency * (freq_scale + 0.5), frequency * 1.0),   // Flute: airy, narrow
+            Waveform::Sine => (frequency * (freq_scale + 0.5), frequency * 1.0),   // Pure sine: airy, narrow
+            Waveform::Flute => (frequency * (freq_scale + 0.3), frequency * 1.2), // Flute: breathy but focused
             Waveform::Trumpet | Waveform::Sawtooth => (frequency * freq_scale, frequency * 3.0), // Reed: wider
             Waveform::Square => (frequency * freq_scale, frequency * 2.0),
         };
+
+        // Clamp center frequency well below Nyquist to keep the biquad stable
+        let nyquist = sample_rate * 0.45;
+        let center_freq = center_freq.min(nyquist);
+        let bandwidth = bandwidth.min(nyquist);
 
         // Compute 2nd-order band-pass filter coefficients
         let omega = 2.0 * std::f32::consts::PI * center_freq / sample_rate;

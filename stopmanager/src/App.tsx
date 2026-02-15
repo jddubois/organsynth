@@ -13,7 +13,7 @@ function sendMidi(message: Array<number>) {
   });
 }
 
-function createCCMessage(channel: number, controlNumber: number) {
+function createCCMessage(channel: number, controlNumber: number, value: number) {
   // Validate inputs
   if (channel < 1 || channel > 16) {
     throw new Error("Channel must be between 1 and 16.");
@@ -25,11 +25,11 @@ function createCCMessage(channel: number, controlNumber: number) {
   const statusByte = 0xb0 | (channel - 1);
 
   // Return the MIDI message as a 3-byte Uint8Array
-  return [statusByte, controlNumber, 127];
+  return [statusByte, controlNumber, value];
 }
 
-function sendCC(channel: number, controlNumber: number) {
-  const message = createCCMessage(channel, controlNumber);
+function sendCC(channel: number, controlNumber: number, value: number) {
+  const message = createCCMessage(channel, controlNumber, value);
   sendMidi(message);
 }
 
@@ -37,6 +37,7 @@ function App() {
 
   const [volume, setVolume] = useState<number>(50);
   const [volumeLoading, setVolumeLoading] = useState<boolean>(true);
+  const [activePresets, setActivePresets] = useState<Record<number, Set<number>>>({});
 
   useEffect(() => {
     const fetchVolume = async () => {
@@ -79,6 +80,22 @@ function App() {
   };
 
   const { config, loading, error } = useConfig();
+
+  useEffect(() => {
+    if (!config) return;
+    const initial: Record<number, Set<number>> = {};
+    for (const preset_default of config.preset_defaults) {
+      const preset = config.presets[preset_default.preset_name];
+      if (preset) {
+        if (!initial[preset_default.midi_channel]) {
+          initial[preset_default.midi_channel] = new Set();
+        }
+        initial[preset_default.midi_channel].add(preset.midi_identifier);
+      }
+    }
+    setActivePresets(initial);
+  }, [config]);
+
   if (loading) {
     return <p>Loading...</p>;
   }
@@ -87,6 +104,23 @@ function App() {
   }
 
   console.log(config);
+
+  const togglePreset = (channel: number, ccId: number) => {
+    const channelActive = activePresets[channel] ?? new Set();
+    const isActive = channelActive.has(ccId);
+
+    if (isActive) {
+      sendCC(channel, ccId, 0);
+      const next = new Set(channelActive);
+      next.delete(ccId);
+      setActivePresets({ ...activePresets, [channel]: next });
+    } else {
+      sendCC(channel, ccId, 127);
+      const next = new Set(channelActive);
+      next.add(ccId);
+      setActivePresets({ ...activePresets, [channel]: next });
+    }
+  };
 
   return (
     <>
@@ -99,21 +133,27 @@ function App() {
       </div>
       {_.map(config?.preset_defaults, (preset_default) => {
         return (
-          <div className="card">
+          <div className="card" key={preset_default.midi_channel}>
             <p>{preset_default.channel_name}</p>
             {_(config.presets)
               .filter((preset) => {
                 return preset.channels.includes(preset_default.midi_channel);
               })
               .map((preset) => {
+                const isActive = activePresets[preset_default.midi_channel]?.has(preset.midi_identifier);
                 return (
                   <button
+                    key={preset.midi_identifier}
                     onClick={() =>
-                      sendCC(
+                      togglePreset(
                         preset_default.midi_channel,
                         preset.midi_identifier,
                       )
                     }
+                    style={{
+                      opacity: isActive ? 1 : 0.5,
+                      fontWeight: isActive ? "bold" : "normal",
+                    }}
                   >
                     {preset.display_name}
                   </button>

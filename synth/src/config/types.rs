@@ -9,7 +9,7 @@ pub struct Config {
 
 #[derive(Debug, Deserialize)]
 pub struct SynthConfig {
-    pub stops: HashMap<String, StopConfig>,
+    pub stops: HashMap<String, StopDefinition>,
     pub presets: HashMap<String, PresetConfig>,
     pub preset_defaults: Vec<PresetDefaultConfig>,
     pub reverb: Option<ReverbConfig>,
@@ -34,6 +34,7 @@ pub struct PresetConfig {
 #[serde(untagged)]
 pub enum PresetStopConfig {
     Named(String),
+    InlineBreaking(BreakingStopConfig),
     Inline(StopConfig),
 }
 
@@ -47,6 +48,31 @@ pub struct StopConfig {
     pub chiff_duration: Option<f32>,
     pub attack_time: Option<f32>,
     pub release_time: Option<f32>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BreakConfig {
+    pub note: u8,
+    pub frequency_ratio: f32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BreakingStopConfig {
+    pub midi_identifier: Option<u8>,
+    pub waveform: String,
+    pub amplitude_ratio: f32,
+    pub breaks: Vec<BreakConfig>,
+    pub chiff_intensity: Option<f32>,
+    pub chiff_duration: Option<f32>,
+    pub attack_time: Option<f32>,
+    pub release_time: Option<f32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum StopDefinition {
+    Breaking(BreakingStopConfig),
+    Simple(StopConfig),
 }
 
 #[derive(Debug, Deserialize)]

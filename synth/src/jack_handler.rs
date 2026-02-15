@@ -25,19 +25,16 @@ impl JackHandler {
 impl ProcessHandler for JackHandler {
     fn process(&mut self, _: &Client, ps: &ProcessScope) -> jack::Control {
         let mut synth = self.synth.lock().unwrap();
-        self.midi_in_port
-            .iter(ps)
-            .for_each(|event: jack::RawMidi<'_>| {
-                if let Ok(midi) = <&[u8; 3]>::try_from(event.bytes) {
-                    synth.send_midi(*midi);
-                }
-            });
-        self.audio_out_port
-            .as_mut_slice(ps)
-            .iter_mut()
-            .for_each(|sample| {
-                *sample = synth.next_sample().tanh();
-            });
+        for event in self.midi_in_port.iter(ps) {
+            if let Ok(midi) = <&[u8; 3]>::try_from(event.bytes) {
+                synth.process_midi(*midi);
+            }
+        }
+        let buffer = self.audio_out_port.as_mut_slice(ps);
+        synth.fill_buffer(buffer);
+        for sample in buffer.iter_mut() {
+            *sample = sample.tanh();
+        }
         jack::Control::Continue
     }
 }

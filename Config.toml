@@ -20,12 +20,118 @@ pre_delay_ms = 20.0
 "2 2/3' Fifth" = { frequency_ratio = 3.0, waveform = "triangle", amplitude_ratio = 1.2 }
 "1 3/5' Tierce" = { frequency_ratio = 5.0, waveform = "triangle", amplitude_ratio = 1.2 }
 "1 1/3' Larigot" = { frequency_ratio = 6.0, waveform = "triangle", amplitude_ratio = 1.0 }
-"16' Flute" = { frequency_ratio = 0.5, waveform = "sine", amplitude_ratio = 0.8, chiff_intensity = 0.1, chiff_duration = 0.05, attack_time = 0.08, release_time = 0.15 }
-"8' Flute" = { frequency_ratio = 1.0, waveform = "sine", amplitude_ratio = 1.8 }
-"4' Flute" = { frequency_ratio = 2.0, waveform = "sine", amplitude_ratio = 1.2 }
+"16' Flute" = { frequency_ratio = 0.5, waveform = "flute", amplitude_ratio = 0.8, chiff_intensity = 0.1, chiff_duration = 0.05, attack_time = 0.08, release_time = 0.15 }
+"8' Flute" = { frequency_ratio = 1.0, waveform = "flute", amplitude_ratio = 1.4 }
+"4' Flute" = { frequency_ratio = 2.0, waveform = "flute", amplitude_ratio = 1.1 }
 "16' Trumpet" = { frequency_ratio = 0.5, waveform = "trumpet", amplitude_ratio = 0.3, chiff_intensity = 0.3, chiff_duration = 0.03, attack_time = 0.015, release_time = 0.15 }
 "8' Trumpet" = { frequency_ratio = 1.0, waveform = "trumpet", amplitude_ratio = 0.5, attack_time = 0.015 }
 "4' Trumpet" = { frequency_ratio = 2.0, waveform = "trumpet", amplitude_ratio = 0.7, attack_time = 0.01 }
+
+# Mixture III ranks with break points
+[synth.stops."Mixture III Rank 1"]
+waveform = "triangle"
+amplitude_ratio = 2.0
+breaks = [
+    { note = 0,  frequency_ratio = 6.0 },
+    { note = 48, frequency_ratio = 4.0 },
+    { note = 60, frequency_ratio = 3.0 },
+    { note = 72, frequency_ratio = 2.0 },
+]
+
+[synth.stops."Mixture III Rank 2"]
+waveform = "triangle"
+amplitude_ratio = 2.2
+breaks = [
+    { note = 0,  frequency_ratio = 8.0 },
+    { note = 48, frequency_ratio = 6.0 },
+    { note = 60, frequency_ratio = 4.0 },
+    { note = 72, frequency_ratio = 3.0 },
+]
+
+[synth.stops."Mixture III Rank 3"]
+waveform = "triangle"
+amplitude_ratio = 2.4
+breaks = [
+    { note = 0,  frequency_ratio = 12.0 },
+    { note = 48, frequency_ratio = 8.0 },
+    { note = 60, frequency_ratio = 6.0 },
+    { note = 72, frequency_ratio = 4.0 },
+]
+
+# Fourniture IV ranks (wide mixture)
+[synth.stops."Fourniture IV Rank 1"]
+waveform = "triangle"
+amplitude_ratio = 0.9
+breaks = [
+    { note = 0,  frequency_ratio = 4.0 },
+    { note = 48, frequency_ratio = 3.0 },
+    { note = 60, frequency_ratio = 2.0 },
+    { note = 72, frequency_ratio = 1.0 },
+]
+
+[synth.stops."Fourniture IV Rank 2"]
+waveform = "triangle"
+amplitude_ratio = 0.9
+breaks = [
+    { note = 0,  frequency_ratio = 6.0 },
+    { note = 48, frequency_ratio = 4.0 },
+    { note = 60, frequency_ratio = 3.0 },
+    { note = 72, frequency_ratio = 2.0 },
+]
+
+[synth.stops."Fourniture IV Rank 3"]
+waveform = "triangle"
+amplitude_ratio = 0.9
+breaks = [
+    { note = 0,  frequency_ratio = 8.0 },
+    { note = 48, frequency_ratio = 6.0 },
+    { note = 60, frequency_ratio = 4.0 },
+    { note = 72, frequency_ratio = 3.0 },
+]
+
+[synth.stops."Fourniture IV Rank 4"]
+waveform = "triangle"
+amplitude_ratio = 0.9
+breaks = [
+    { note = 0,  frequency_ratio = 12.0 },
+    { note = 48, frequency_ratio = 8.0 },
+    { note = 60, frequency_ratio = 6.0 },
+    { note = 72, frequency_ratio = 4.0 },
+]
+
+# Cymbale III ranks (bright, high-pitched mixture)
+[synth.stops."Cymbale III Rank 1"]
+waveform = "triangle"
+amplitude_ratio = 0.7
+breaks = [
+    { note = 0,  frequency_ratio = 8.0 },
+    { note = 36, frequency_ratio = 6.0 },
+    { note = 48, frequency_ratio = 4.0 },
+    { note = 60, frequency_ratio = 3.0 },
+    { note = 72, frequency_ratio = 2.0 },
+]
+
+[synth.stops."Cymbale III Rank 2"]
+waveform = "triangle"
+amplitude_ratio = 0.7
+breaks = [
+    { note = 0,  frequency_ratio = 12.0 },
+    { note = 36, frequency_ratio = 8.0 },
+    { note = 48, frequency_ratio = 6.0 },
+    { note = 60, frequency_ratio = 4.0 },
+    { note = 72, frequency_ratio = 3.0 },
+]
+
+[synth.stops."Cymbale III Rank 3"]
+waveform = "triangle"
+amplitude_ratio = 0.7
+breaks = [
+    { note = 0,  frequency_ratio = 16.0 },
+    { note = 36, frequency_ratio = 12.0 },
+    { note = 48, frequency_ratio = 8.0 },
+    { note = 60, frequency_ratio = 6.0 },
+    { note = 72, frequency_ratio = 4.0 },
+]
 
 
 [synth.presets.pedalboard_default]
@@ -68,13 +174,25 @@ channels = [1]
 display_name = "Pleno"
 
 
-[synth.presets.mixture]
-midi_identifier = 23
+[synth.presets.cornet]
+midi_identifier = 30
 stops = [
     "8' Principal",
     "4' Octave",
     "2 2/3' Fifth",
     "1 3/5' Tierce"
+]
+channels = [1]
+display_name = "Cornet"
+
+[synth.presets.mixture]
+midi_identifier = 23
+stops = [
+    "8' Principal",
+    "4' Octave",
+    "Mixture III Rank 1",
+    "Mixture III Rank 2",
+    "Mixture III Rank 3",
 ]
 channels = [1]
 display_name = "Mixture"
@@ -91,8 +209,8 @@ display_name = "Flute"
 [synth.presets.pedalboard_flute]
 midi_identifier = 25
 stops = [
-    { frequency_ratio = 0.5, waveform = "sine", amplitude_ratio = 1.0 },
-    { frequency_ratio = 1.0, waveform = "sine", amplitude_ratio = 1.6 },
+    { frequency_ratio = 0.5, waveform = "flute", amplitude_ratio = 0.9 },
+    { frequency_ratio = 1.0, waveform = "flute", amplitude_ratio = 1.2 },
 ]
 channels = [2]
 display_name = "Flute"
@@ -117,12 +235,16 @@ display_name = "Trumpet"
 [synth.presets.plein_jeu]
 midi_identifier = 28
 stops = [
-    { frequency_ratio = 0.5, waveform = "triangle", amplitude_ratio = 0.6 },
-    { frequency_ratio = 1.0, waveform = "triangle", amplitude_ratio = 1.0 },
-    { frequency_ratio = 2.0, waveform = "triangle", amplitude_ratio = 1.4 },
-    { frequency_ratio = 4.0, waveform = "triangle", amplitude_ratio = 1.6 },
-    { frequency_ratio = 3.0, waveform = "triangle", amplitude_ratio = 1.8 },
-    { frequency_ratio = 6.0, waveform = "triangle", amplitude_ratio = 2.0 }
+    "8' Principal",
+    "4' Octave",
+    "2' Super Octave",
+    "Fourniture IV Rank 1",
+    "Fourniture IV Rank 2",
+    "Fourniture IV Rank 3",
+    "Fourniture IV Rank 4",
+    "Cymbale III Rank 1",
+    "Cymbale III Rank 2",
+    "Cymbale III Rank 3",
 ]
 channels = [1]
 display_name = "Plein Jeu"

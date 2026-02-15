@@ -5,6 +5,7 @@ pub enum Waveform {
     Sawtooth,
     Triangle,
     Trumpet,
+    Flute,
 }
 
 /// PolyBLEP anti-aliasing correction.
@@ -31,6 +32,7 @@ impl Waveform {
             Waveform::Sawtooth => "sawtooth",
             Waveform::Triangle => "triangle",
             Waveform::Trumpet => "trumpet",
+            Waveform::Flute => "flute",
         }
     }
     pub fn parse(waveform: &str) -> Self {
@@ -40,6 +42,7 @@ impl Waveform {
             "sawtooth" => Waveform::Sawtooth,
             "triangle" => Waveform::Triangle,
             "trumpet" => Waveform::Trumpet,
+            "flute" => Waveform::Flute,
             _ => Waveform::Sine,
         }
     }
@@ -51,6 +54,7 @@ impl Waveform {
             Waveform::Sawtooth => Self::generate_sawtooth_sample(phase, dt),
             Waveform::Triangle => Self::generate_organ_sample(phase, frequency),
             Waveform::Trumpet => Self::generate_trumpet_sample(phase, frequency, dt),
+            Waveform::Flute => Self::generate_flute_sample(phase, frequency, dt),
         }
     }
 
@@ -84,6 +88,55 @@ impl Waveform {
 
             // Apply brightness scaling to upper harmonics (3rd and above)
             if i >= 2 {
+                amp *= brightness;
+            }
+
+            sample += amp * (two_pi * harmonic * phase).sin();
+            amp_sum += amp;
+        }
+
+        if amp_sum > 0.0 {
+            sample / amp_sum
+        } else {
+            0.0
+        }
+    }
+
+    fn generate_flute_sample(phase: f32, frequency: f32, dt: f32) -> f32 {
+        // Additive synthesis with subtle upper harmonics — warm flute tone
+        const HARMONIC_AMPS: [f32; 6] = [1.0, 0.18, 0.06, 0.03, 0.01, 0.005];
+
+        // Frequency-dependent brightness: low notes breathier, high notes purer
+        let brightness = if frequency < 150.0 {
+            1.4
+        } else if frequency > 500.0 {
+            0.7
+        } else {
+            1.4 - 0.7 * (frequency - 150.0) / 350.0
+        };
+
+        let two_pi = 2.0 * std::f32::consts::PI;
+        let mut sample = 0.0;
+        let mut amp_sum = 0.0;
+
+        for i in 0..6 {
+            let harmonic = (i + 1) as f32;
+
+            // Soft Nyquist rolloff: taper harmonics approaching Nyquist
+            // instead of hard-cutting, to avoid clicks from LFO pitch modulation
+            let nyquist_ratio = harmonic * 2.0 * dt;
+            if nyquist_ratio >= 1.0 {
+                break;
+            }
+            let nyquist_taper = if nyquist_ratio > 0.8 {
+                1.0 - (nyquist_ratio - 0.8) / 0.2
+            } else {
+                1.0
+            };
+
+            let mut amp = HARMONIC_AMPS[i] * nyquist_taper;
+
+            if i >= 1 {
                 amp *= brightness;
             }
 

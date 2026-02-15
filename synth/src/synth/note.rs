@@ -1,48 +1,45 @@
 use super::oscillator::Oscillator;
-use super::stop::Stop;
+use super::stop::StopSpec;
 
 pub struct Note {
     sample_rate: f32,
     oscillators: Vec<Oscillator>,
     pub frequency: f32,
+    pub midi_note: u8,
     pub is_released: bool,
 }
 
 impl Note {
-    pub fn new(frequency: f32, sample_rate: f32, stops: &[Stop]) -> Self {
+    pub fn new(frequency: f32, midi_note: u8, sample_rate: f32, stops: &[StopSpec]) -> Self {
         let oscillators = stops
             .iter()
-            .map(|stop| Oscillator::from_stop(stop, frequency, sample_rate))
+            .map(|spec| {
+                let stop = spec.resolve(midi_note);
+                Oscillator::from_stop(&stop, frequency, sample_rate)
+            })
             .collect();
         Self {
             sample_rate,
             oscillators,
             frequency,
+            midi_note,
             is_released: false,
         }
     }
 
-    pub fn use_preset(&mut self, stops: &[Stop]) {
-        if self.is_released {
-            return;
-        }
-        self.oscillators = stops
-            .iter()
-            .map(|stop| Oscillator::from_stop(stop, self.frequency, self.sample_rate))
-            .collect();
-    }
-
-    pub fn add_stop(&mut self, stop: &Stop) {
+    pub fn add_stop(&mut self, spec: &StopSpec) {
+        let stop = spec.resolve(self.midi_note);
         self.oscillators.push(Oscillator::from_stop(
-            stop,
+            &stop,
             self.frequency,
             self.sample_rate,
         ));
     }
 
-    pub fn remove_stop(&mut self, stop: &Stop) {
+    pub fn remove_stop(&mut self, spec: &StopSpec) {
+        let stop = spec.resolve(self.midi_note);
         for oscillator in &mut self.oscillators {
-            if oscillator.matches_stop(stop, self.frequency) && !oscillator.is_released {
+            if oscillator.matches_stop(&stop, self.frequency) && !oscillator.is_released {
                 oscillator.release();
                 return;
             }
