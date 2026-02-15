@@ -27,7 +27,13 @@ def main():
     # --- Create an rtmidi output object ---
     midiout = rtmidi.MidiOut()
 
-    midiout.open_virtual_port("pedalboard")
+    ports = midiout.get_ports()
+    if ports:
+        midiout.open_port(0)
+        print(f"Opened MIDI port: {ports[0]}")
+    else:
+        midiout.open_virtual_port("pedalboard")
+        print("No ports found, opened virtual port: pedalboard")
 
     print(f"Playing MIDI file: {midi_file_path}")
     start_time = time.time()
