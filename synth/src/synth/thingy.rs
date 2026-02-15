@@ -66,9 +66,10 @@ impl InternalSynth {
         for note in self.notes.iter_mut() {
             sample += note.next_sample();
         }
+        sample *= 0.05;
         for filter in self.filters.iter_mut() {
             sample = filter.process(sample);
         }
-        sample * 0.025
+        sample
     }
 }

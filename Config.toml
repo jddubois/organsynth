@@ -23,9 +23,9 @@ pre_delay_ms = 20.0
 "16' Flute" = { frequency_ratio = 0.5, waveform = "sine", amplitude_ratio = 0.8, chiff_intensity = 0.1, chiff_duration = 0.05, attack_time = 0.08, release_time = 0.15 }
 "8' Flute" = { frequency_ratio = 1.0, waveform = "sine", amplitude_ratio = 1.8 }
 "4' Flute" = { frequency_ratio = 2.0, waveform = "sine", amplitude_ratio = 1.2 }
-"16' Trumpet" = { frequency_ratio = 0.5, waveform = "trumpet", amplitude_ratio = 0.4, chiff_intensity = 0.4, chiff_duration = 0.03, attack_time = 0.01, release_time = 0.08 }
-"8' Trumpet" = { frequency_ratio = 1.0, waveform = "trumpet", amplitude_ratio = 0.6 }
-"4' Trumpet" = { frequency_ratio = 2.0, waveform = "trumpet", amplitude_ratio = 1.0 }
+"16' Trumpet" = { frequency_ratio = 0.5, waveform = "trumpet", amplitude_ratio = 0.3, chiff_intensity = 0.3, chiff_duration = 0.03, attack_time = 0.02, release_time = 0.1 }
+"8' Trumpet" = { frequency_ratio = 1.0, waveform = "trumpet", amplitude_ratio = 0.5, attack_time = 0.02 }
+"4' Trumpet" = { frequency_ratio = 2.0, waveform = "trumpet", amplitude_ratio = 0.7, attack_time = 0.015 }
 
 
 [synth.presets.pedalboard_default]
@@ -42,7 +42,7 @@ midi_identifier = 29
 stops = [
     { frequency_ratio = 0.5, waveform = "triangle", amplitude_ratio = 0.6 },
     { frequency_ratio = 1.0, waveform = "triangle", amplitude_ratio = 1.8 },
-    { frequency_ratio = 1.0, waveform = "trumpet", amplitude_ratio = 0.6 },
+    { frequency_ratio = 1.0, waveform = "trumpet", amplitude_ratio = 0.4 },
 ]
 channels = [2]
 display_name = "Reed"
@@ -110,7 +110,6 @@ display_name = "Trumpet"
 midi_identifier = 27
 stops = [
     "8' Trumpet",
-    "4' Trumpet",
 ]
 channels = [1]
 display_name = "Trumpet"

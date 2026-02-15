@@ -130,11 +130,12 @@ impl Filter for Freeverb {
         self.pre_delay[self.pre_delay_index] = input;
         self.pre_delay_index = (self.pre_delay_index + 1) % self.pre_delay.len();
 
-        // Sum parallel comb filters
+        // Sum parallel comb filters, normalized by count
         let mut comb_out = 0.0;
         for comb in self.combs.iter_mut() {
             comb_out += comb.process(delayed_input);
         }
+        comb_out /= self.combs.len() as f32;
 
         // Series all-pass filters
         let mut output = comb_out;
