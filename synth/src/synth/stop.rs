@@ -20,7 +20,7 @@ impl Stop {
             match waveform {
                 Waveform::Triangle => (0.3, 0.04, 0.03, 0.1),   // Principal
                 Waveform::Sine => (0.1, 0.05, 0.08, 0.15),      // Flute
-                Waveform::Trumpet => (0.3, 0.03, 0.02, 0.1),    // Reed
+                Waveform::Trumpet => (0.3, 0.03, 0.015, 0.15),  // Reed
                 Waveform::Sawtooth => (0.35, 0.03, 0.01, 0.08), // Reed-like
                 Waveform::Square => (0.2, 0.04, 0.02, 0.1),     // Mid
             };

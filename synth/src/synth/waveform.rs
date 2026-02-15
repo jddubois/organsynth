@@ -69,7 +69,7 @@ impl Waveform {
         let brightness = if frequency < 150.0 {
             1.15 // boost upper harmonics for low notes
         } else if frequency > 500.0 {
-            0.8 // reduce upper harmonics for high notes
+            0.95 // slightly taper upper harmonics for high notes
         } else {
             1.0
         };
