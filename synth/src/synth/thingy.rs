@@ -7,6 +7,12 @@ pub struct InternalSynth {
     filters: Vec<Box<dyn Filter>>,
     active_presets: HashMap<u8, Vec<StopSpec>>,
     notes: Vec<Note>,
+    // Diagnostics
+    diag_counter: u32,
+    diag_interval: u32,
+    diag_pre_peak: f32,
+    diag_post_peak: f32,
+    diag_nan_count: u32,
 }
 
 impl InternalSynth {
@@ -27,6 +33,11 @@ impl InternalSynth {
                 Box::new(super::filters::Freeverb::new(sample_rate, reverb_config)),
             ],
             active_presets,
+            diag_counter: 0,
+            diag_interval: sample_rate as u32,
+            diag_pre_peak: 0.0,
+            diag_post_peak: 0.0,
+            diag_nan_count: 0,
         }
     }
 
@@ -131,10 +142,44 @@ impl InternalSynth {
             sample += note.next_sample();
         }
         sample *= 0.05;
-        sample = soft_clip(sample);
+
+        // Track pre-filter peak
+        let pre_abs = sample.abs();
+        if pre_abs > self.diag_pre_peak {
+            self.diag_pre_peak = pre_abs;
+        }
+        if !sample.is_finite() {
+            self.diag_nan_count += 1;
+            sample = 0.0;
+        }
+
         for filter in self.filters.iter_mut() {
             sample = filter.process(sample);
         }
+
+        // Track post-filter peak
+        let post_abs = sample.abs();
+        if post_abs > self.diag_post_peak {
+            self.diag_post_peak = post_abs;
+        }
+
+        // Periodic diagnostic logging (~once per second)
+        self.diag_counter += 1;
+        if self.diag_counter >= self.diag_interval {
+            let note_count = self.notes.len();
+            let osc_count: usize = self.notes.iter().map(|n| n.oscillator_count()).sum();
+            if note_count > 0 || self.diag_pre_peak > 0.01 {
+                eprintln!(
+                    "[DIAG] notes={} oscs={} pre_peak={:.4} post_peak={:.4} nan_count={}",
+                    note_count, osc_count, self.diag_pre_peak, self.diag_post_peak, self.diag_nan_count,
+                );
+            }
+            self.diag_counter = 0;
+            self.diag_pre_peak = 0.0;
+            self.diag_post_peak = 0.0;
+            self.diag_nan_count = 0;
+        }
+
         sample
     }
 }

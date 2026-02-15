@@ -103,9 +103,9 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # Build and start synth (must run from synth/ so Config.toml resolves)
-cargo build --manifest-path "$SYNTH_DIR/Cargo.toml" || exit 1
+cargo build --release --manifest-path "$SYNTH_DIR/Cargo.toml" || exit 1
 cd "$SYNTH_DIR"
-cargo run 2>&1 &
+cargo run --release 2>&1 &
 SYNTH_PID=$!
 
 # Wait for synth to register with JACK

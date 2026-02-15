@@ -53,6 +53,10 @@ impl Note {
             .for_each(|oscillator| oscillator.release());
     }
 
+    pub fn oscillator_count(&self) -> usize {
+        self.oscillators.len()
+    }
+
     pub fn is_finished(&self) -> bool {
         self.oscillators.iter().all(|osc| osc.is_finished())
     }

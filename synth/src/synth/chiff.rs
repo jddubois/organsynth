@@ -110,10 +110,14 @@ impl Chiff {
 
         // Apply band-pass biquad filter (Direct Form 1)
         // b1 = 0 for band-pass, so the x[n-1] term is omitted
-        let filtered = self.bp_a0 * noise
+        let mut filtered = self.bp_a0 * noise
             + self.bp_a2 * self.bp_x2
             - self.bp_b1 * self.bp_y1
             - self.bp_b2 * self.bp_y2;
+        // Prevent NaN/infinity from corrupting biquad feedback state
+        if !filtered.is_finite() {
+            filtered = 0.0;
+        }
         self.bp_x2 = self.bp_x1;
         self.bp_x1 = noise;
         self.bp_y2 = self.bp_y1;
