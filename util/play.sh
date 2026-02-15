@@ -4,6 +4,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 MIDI_FILE="${1:-$SCRIPT_DIR/bwv588.mid}"
+SYNTH_DIR="$PROJECT_DIR/synth"
 
 export DYLD_LIBRARY_PATH=/opt/homebrew/opt/jack/lib
 
@@ -17,9 +18,10 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Build and start synth
-cargo build --manifest-path "$PROJECT_DIR/synth/Cargo.toml" || exit 1
-cargo run --manifest-path "$PROJECT_DIR/synth/Cargo.toml" 2>&1 &
+# Build and start synth (must run from synth/ so Config.toml resolves)
+cargo build --manifest-path "$SYNTH_DIR/Cargo.toml" || exit 1
+cd "$SYNTH_DIR"
+cargo run 2>&1 &
 SYNTH_PID=$!
 
 # Wait for synth to register with JACK
