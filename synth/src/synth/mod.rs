@@ -1,9 +1,10 @@
+mod chiff;
 mod config;
 mod filters;
 mod note;
 mod oscillator;
 mod stop;
-mod synth; // TODO
+mod synth;
 mod thingy;
 mod waveform;
 pub use stop::Stop;

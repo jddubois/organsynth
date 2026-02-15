@@ -1,6 +1,6 @@
 use super::{filters::Filter, note::Note, stop::Stop};
+use crate::config::ReverbConfig;
 
-// TODO this file needs to be renamed
 pub struct InternalSynth {
     sample_rate: f32,
     filters: Vec<Box<dyn Filter>>,
@@ -9,18 +9,13 @@ pub struct InternalSynth {
 }
 
 impl InternalSynth {
-    pub fn new(sample_rate: f32, stops: Vec<Stop>) -> Self {
+    pub fn new(sample_rate: f32, stops: Vec<Stop>, reverb_config: &ReverbConfig) -> Self {
         Self {
             notes: Vec::new(),
             sample_rate,
             filters: vec![
-                Box::new(super::filters::LowPass::new(0.2)),
-                Box::new(super::filters::SimpleReverb::new(
-                    sample_rate,
-                    100.0,
-                    0.3,
-                    0.3,
-                )),
+                Box::new(super::filters::LowPass::new(0.7)),
+                Box::new(super::filters::Freeverb::new(sample_rate, reverb_config)),
             ],
             stops,
         }
@@ -73,6 +68,6 @@ impl InternalSynth {
         for filter in self.filters.iter_mut() {
             sample = filter.process(sample);
         }
-        sample * 0.05
+        sample * 0.025
     }
 }

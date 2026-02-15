@@ -1,13 +1,12 @@
 use super::waveform::Waveform;
 use super::{config, Stop};
-use crate::config::SynthConfig;
+use crate::config::{ReverbConfig, SynthConfig};
 use crate::midi;
 use crate::synth::thingy::InternalSynth;
 use std::collections::HashMap;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
-// TODO this file should still be cleaned up a bit
 pub struct Synth {
     midi_tx: mpsc::Sender<[u8; 3]>,
     synths: Arc<Mutex<HashMap<u8, InternalSynth>>>,
@@ -17,6 +16,7 @@ impl Synth {
     pub fn new(sample_rate: f32, config: SynthConfig) -> Self {
         let (midi_tx, midi_rx) = mpsc::channel::<[u8; 3]>();
         let synths = Arc::new(Mutex::new(HashMap::new()));
+        let reverb_config = config.reverb.clone().unwrap_or_default();
         Self::spawn_midi_worker(
             synths.clone(),
             midi_rx,
@@ -24,6 +24,7 @@ impl Synth {
             &config::get_presets(&config),
             &config::get_preset_defaults(&config),
             sample_rate,
+            reverb_config,
         );
         Self { midi_tx, synths }
     }
@@ -47,6 +48,7 @@ impl Synth {
         available_presets: &HashMap<u8, Vec<Stop>>,
         preset_defaults: &HashMap<u8, Vec<Stop>>,
         sample_rate: f32,
+        reverb_config: ReverbConfig,
     ) {
         let available_stops = available_stops.clone();
         let available_presets = available_presets.clone();
@@ -63,6 +65,7 @@ impl Synth {
                             &preset_defaults,
                             parsed,
                             sample_rate,
+                            &reverb_config,
                         );
                     }
                     Err(e) => println!("Error parsing MIDI message: {:?}", e),
@@ -79,8 +82,9 @@ fn handle_midi_message(
     preset_defaults: &HashMap<u8, Vec<Stop>>,
     message: midi::Message,
     sample_rate: f32,
+    reverb_config: &ReverbConfig,
 ) {
-    let synth = get_or_create_synth(synths, message.channel, sample_rate, preset_defaults);
+    let synth = get_or_create_synth(synths, message.channel, sample_rate, preset_defaults, reverb_config);
     match message.kind {
         midi::MessageKind::NoteOn => handle_note_on(synth, message),
         midi::MessageKind::NoteOff => handle_note_off(synth, message),
@@ -96,17 +100,22 @@ fn get_or_create_synth<'a>(
     channel: u8,
     sample_rate: f32,
     preset_defaults: &'a HashMap<u8, Vec<Stop>>,
+    reverb_config: &ReverbConfig,
 ) -> &'a mut InternalSynth {
     synths.entry(channel).or_insert_with(|| {
         let default_stops = vec![Stop {
             waveform: Waveform::Sine,
             frequency_ratio: 1.0,
             amplitude_ratio: 1.0,
+            chiff_intensity: 0.1,
+            chiff_duration: 0.05,
+            attack_time: 0.05,
+            release_time: 0.1,
         }];
         let stops = preset_defaults
             .get(&(channel + 1))
             .unwrap_or(&default_stops);
-        InternalSynth::new(sample_rate, stops.clone())
+        InternalSynth::new(sample_rate, stops.clone(), reverb_config)
     })
 }
 

@@ -12,6 +12,7 @@ pub struct SynthConfig {
     pub stops: HashMap<String, StopConfig>,
     pub presets: HashMap<String, PresetConfig>,
     pub preset_defaults: Vec<PresetDefaultConfig>,
+    pub reverb: Option<ReverbConfig>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -42,10 +43,35 @@ pub struct StopConfig {
     pub waveform: String,
     pub frequency_ratio: f32,
     pub amplitude_ratio: f32,
+    pub chiff_intensity: Option<f32>,
+    pub chiff_duration: Option<f32>,
+    pub attack_time: Option<f32>,
+    pub release_time: Option<f32>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct PresetDefaultConfig {
     pub midi_channel: u8,
     pub preset_name: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ReverbConfig {
+    pub room_size: f32,
+    pub damping: f32,
+    pub wet: f32,
+    pub dry: f32,
+    pub pre_delay_ms: Option<f32>,
+}
+
+impl Default for ReverbConfig {
+    fn default() -> Self {
+        Self {
+            room_size: 0.85,
+            damping: 0.5,
+            wet: 0.35,
+            dry: 0.65,
+            pre_delay_ms: Some(20.0),
+        }
+    }
 }

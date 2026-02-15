@@ -5,18 +5,25 @@ midi_in_port_name = "midi_in"
 system_audio_l_port_name = "system:playback_1"
 system_audio_r_port_name = "system:playback_2"
 
+[synth.reverb]
+room_size = 0.85
+damping = 0.5
+wet = 0.35
+dry = 0.65
+pre_delay_ms = 20.0
+
 [synth.stops]
 "16' Subbass" = { frequency_ratio = 0.5, waveform = "triangle", amplitude_ratio = 0.8 }
-"8' Principal" = { frequency_ratio = 1.0, waveform = "triangle", amplitude_ratio = 1.0 }
+"8' Principal" = { frequency_ratio = 1.0, waveform = "triangle", amplitude_ratio = 1.0, chiff_intensity = 0.3, chiff_duration = 0.04, attack_time = 0.03, release_time = 0.1 }
 "4' Octave" = { frequency_ratio = 2.0, waveform = "triangle", amplitude_ratio = 2.0 }
 "2' Super Octave" = { frequency_ratio = 4.0, waveform = "triangle", amplitude_ratio = 1.0 }
 "2 2/3' Fifth" = { frequency_ratio = 3.0, waveform = "triangle", amplitude_ratio = 1.2 }
 "1 3/5' Tierce" = { frequency_ratio = 5.0, waveform = "triangle", amplitude_ratio = 1.2 }
 "1 1/3' Larigot" = { frequency_ratio = 6.0, waveform = "triangle", amplitude_ratio = 1.0 }
-"16' Flute" = { frequency_ratio = 0.5, waveform = "sine", amplitude_ratio = 0.8 }
+"16' Flute" = { frequency_ratio = 0.5, waveform = "sine", amplitude_ratio = 0.8, chiff_intensity = 0.1, chiff_duration = 0.05, attack_time = 0.08, release_time = 0.15 }
 "8' Flute" = { frequency_ratio = 1.0, waveform = "sine", amplitude_ratio = 1.8 }
 "4' Flute" = { frequency_ratio = 2.0, waveform = "sine", amplitude_ratio = 1.2 }
-"16' Trumpet" = { frequency_ratio = 0.5, waveform = "trumpet", amplitude_ratio = 0.4 }
+"16' Trumpet" = { frequency_ratio = 0.5, waveform = "trumpet", amplitude_ratio = 0.4, chiff_intensity = 0.4, chiff_duration = 0.03, attack_time = 0.01, release_time = 0.08 }
 "8' Trumpet" = { frequency_ratio = 1.0, waveform = "trumpet", amplitude_ratio = 0.6 }
 "4' Trumpet" = { frequency_ratio = 2.0, waveform = "trumpet", amplitude_ratio = 1.0 }
 
