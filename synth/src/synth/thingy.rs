@@ -131,6 +131,7 @@ impl InternalSynth {
             sample += note.next_sample();
         }
         sample *= 0.05;
+        sample = soft_clip(sample);
         for filter in self.filters.iter_mut() {
             sample = filter.process(sample);
         }

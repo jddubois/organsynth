@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import { useConfig } from "./config";
-import _ from "lodash";
 
 function sendMidi(message: Array<number>) {
   fetch("http://192.168.1.21:8080/midi", {
@@ -14,17 +13,13 @@ function sendMidi(message: Array<number>) {
 }
 
 function createCCMessage(channel: number, controlNumber: number, value: number) {
-  // Validate inputs
   if (channel < 1 || channel > 16) {
     throw new Error("Channel must be between 1 and 16.");
   }
   if (controlNumber < 0 || controlNumber > 127) {
     throw new Error("Control number must be between 0 and 127.");
   }
-  // MIDI channels are 0-based in the protocol (0-15)
   const statusByte = 0xb0 | (channel - 1);
-
-  // Return the MIDI message as a 3-byte Uint8Array
   return [statusByte, controlNumber, value];
 }
 
@@ -34,7 +29,6 @@ function sendCC(channel: number, controlNumber: number, value: number) {
 }
 
 function App() {
-
   const [volume, setVolume] = useState<number>(50);
   const [volumeLoading, setVolumeLoading] = useState<boolean>(true);
   const [activePresets, setActivePresets] = useState<Record<number, Set<number>>>({});
@@ -97,13 +91,19 @@ function App() {
   }, [config]);
 
   if (loading) {
-    return <p>Loading...</p>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-organ-text-muted text-lg">Loading...</p>
+      </div>
+    );
   }
   if (error) {
-    return <p>Error: {error}</p>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-red-400 text-lg">Error: {error}</p>
+      </div>
+    );
   }
-
-  console.log(config);
 
   const togglePreset = (channel: number, ccId: number) => {
     const channelActive = activePresets[channel] ?? new Set();
@@ -123,47 +123,91 @@ function App() {
   };
 
   return (
-    <>
-      <div className="card">
-        <label>Volume: {volume}%</label>
-        <div style={{ display: "flex", gap: 12, justifyContent: "center", alignItems: "center" }}>
-          <button onClick={() => adjustVolume("down")} disabled={volumeLoading || volume <= 0}>-</button>
-          <button onClick={() => adjustVolume("up")} disabled={volumeLoading || volume >= 100}>+</button>
+    <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight text-organ-text">
+          OrganSynth
+        </h1>
+
+        {/* Volume control */}
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-organ-text-muted">Volume</span>
+          <button
+            onClick={() => adjustVolume("down")}
+            disabled={volumeLoading || volume <= 0}
+            className="w-9 h-9 rounded-lg bg-organ-surface border border-organ-border
+                       text-organ-text font-semibold text-lg
+                       hover:bg-organ-surface-light hover:border-amber-glow/40
+                       disabled:opacity-30 disabled:cursor-not-allowed
+                       transition-all duration-150 cursor-pointer"
+          >
+            -
+          </button>
+          <span className="text-sm text-organ-text tabular-nums w-10 text-center font-medium">
+            {volume}%
+          </span>
+          <button
+            onClick={() => adjustVolume("up")}
+            disabled={volumeLoading || volume >= 100}
+            className="w-9 h-9 rounded-lg bg-organ-surface border border-organ-border
+                       text-organ-text font-semibold text-lg
+                       hover:bg-organ-surface-light hover:border-amber-glow/40
+                       disabled:opacity-30 disabled:cursor-not-allowed
+                       transition-all duration-150 cursor-pointer"
+          >
+            +
+          </button>
         </div>
       </div>
-      {_.map(config?.preset_defaults, (preset_default) => {
+
+      {/* Channel sections */}
+      {config?.preset_defaults.map((preset_default: any) => {
+        const channelPresets = Object.values(config.presets).filter(
+          (preset: any) => preset.channels.includes(preset_default.midi_channel)
+        );
+
         return (
-          <div className="card" key={preset_default.midi_channel}>
-            <p>{preset_default.channel_name}</p>
-            {_(config.presets)
-              .filter((preset) => {
-                return preset.channels.includes(preset_default.midi_channel);
-              })
-              .map((preset) => {
-                const isActive = activePresets[preset_default.midi_channel]?.has(preset.midi_identifier);
+          <div
+            key={preset_default.midi_channel}
+            className="mb-6 rounded-xl bg-organ-surface border border-organ-border p-5"
+          >
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-organ-text-muted mb-4">
+              {preset_default.channel_name}
+            </h2>
+            <div className="flex flex-wrap gap-2.5">
+              {channelPresets.map((preset: any) => {
+                const isActive = activePresets[preset_default.midi_channel]?.has(
+                  preset.midi_identifier
+                );
                 return (
                   <button
                     key={preset.midi_identifier}
                     onClick={() =>
                       togglePreset(
                         preset_default.midi_channel,
-                        preset.midi_identifier,
+                        preset.midi_identifier
                       )
                     }
-                    style={{
-                      opacity: isActive ? 1 : 0.5,
-                      fontWeight: isActive ? "bold" : "normal",
-                    }}
+                    className={`
+                      px-5 py-3 rounded-lg text-base font-medium
+                      transition-all duration-200 cursor-pointer
+                      ${
+                        isActive
+                          ? "bg-amber-glow text-organ-bg shadow-[0_0_12px_rgba(212,162,78,0.35)] border border-amber-bright/50"
+                          : "bg-organ-surface-light text-organ-text-muted border border-organ-border hover:border-organ-text-muted/40 hover:text-organ-text/80"
+                      }
+                    `}
                   >
                     {preset.display_name}
                   </button>
                 );
-              })
-              .value()}
+              })}
+            </div>
           </div>
         );
       })}
-    </>
+    </div>
   );
 }
 

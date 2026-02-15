@@ -4,11 +4,12 @@ use super::waveform::Waveform;
 /// When wind first enters a pipe, there's a brief burst of noise
 /// before the pipe "speaks" its steady tone.
 pub struct Chiff {
-    /// Band-pass filter state for coloring the noise
+    /// Band-pass biquad filter state (Direct Form 1)
+    bp_x1: f32,
+    bp_x2: f32,
     bp_y1: f32,
     bp_y2: f32,
     bp_a0: f32,
-    bp_a1: f32,
     bp_a2: f32,
     bp_b1: f32,
     bp_b2: f32,
@@ -68,17 +69,18 @@ impl Chiff {
         let alpha = omega.sin() / (2.0 * q);
 
         let b0 = alpha;
-        let b1 = 0.0;
+        // b1 = 0.0 for band-pass, so bp_a1 is always 0 — omitted
         let b2 = -alpha;
         let a0 = 1.0 + alpha;
         let a1 = -2.0 * omega.cos();
         let a2 = 1.0 - alpha;
 
         Self {
+            bp_x1: 0.0,
+            bp_x2: 0.0,
             bp_y1: 0.0,
             bp_y2: 0.0,
             bp_a0: b0 / a0,
-            bp_a1: b1 / a0,
             bp_a2: b2 / a0,
             bp_b1: a1 / a0,
             bp_b2: a2 / a0,
@@ -106,11 +108,14 @@ impl Chiff {
         self.rng_state ^= self.rng_state << 5;
         let noise = (self.rng_state as f32 / u32::MAX as f32) * 2.0 - 1.0;
 
-        // Apply band-pass filter
-        let filtered = self.bp_a0 * noise + self.bp_a1 * self.bp_y1 + self.bp_a2 * self.bp_y2
+        // Apply band-pass biquad filter (Direct Form 1)
+        // b1 = 0 for band-pass, so the x[n-1] term is omitted
+        let filtered = self.bp_a0 * noise
+            + self.bp_a2 * self.bp_x2
             - self.bp_b1 * self.bp_y1
             - self.bp_b2 * self.bp_y2;
-        // Shift the biquad state — use the filtered output as y[n]
+        self.bp_x2 = self.bp_x1;
+        self.bp_x1 = noise;
         self.bp_y2 = self.bp_y1;
         self.bp_y1 = filtered;
 
