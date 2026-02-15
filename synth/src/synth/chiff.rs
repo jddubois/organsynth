@@ -37,11 +37,23 @@ impl Chiff {
 
         // Band-pass filter centered on harmonic of the oscillator frequency
         // Different stop families get different chiff character
+        // Scale chiff center frequency with pitch — low pipes have chiff closer to fundamental
+        let freq_scale = if frequency < 100.0 {
+            // Low notes: center near 1.5× fundamental (subtle, close to pipe resonance)
+            1.5
+        } else if frequency < 300.0 {
+            // Mid range: blend from 1.5× to full multiplier
+            1.5 + (frequency - 100.0) / 200.0
+        } else {
+            // Upper range: use full multiplier
+            2.5
+        };
+
         let (center_freq, bandwidth) = match waveform {
-            Waveform::Triangle => (frequency * 2.5, frequency * 2.0),  // Principal: 2nd-3rd harmonic
-            Waveform::Sine => (frequency * 3.0, frequency * 1.5),      // Flute: airy, narrower
-            Waveform::Trumpet | Waveform::Sawtooth => (frequency * 2.0, frequency * 4.0), // Reed: wider bandwidth
-            Waveform::Square => (frequency * 2.5, frequency * 2.5),
+            Waveform::Triangle => (frequency * freq_scale, frequency * 1.5),       // Principal: tighter bandwidth
+            Waveform::Sine => (frequency * (freq_scale + 0.5), frequency * 1.0),   // Flute: airy, narrow
+            Waveform::Trumpet | Waveform::Sawtooth => (frequency * freq_scale, frequency * 3.0), // Reed: wider
+            Waveform::Square => (frequency * freq_scale, frequency * 2.0),
         };
 
         // Compute 2nd-order band-pass filter coefficients

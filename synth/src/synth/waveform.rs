@@ -79,8 +79,8 @@ impl Waveform {
     }
 
     fn generate_organ_sample(phase: f32, frequency: f32) -> f32 {
-        let min_freq = 20.0;
-        let max_freq = 100.0;
+        let min_freq = 50.0;
+        let max_freq = 250.0;
         let log_base = 10.0;
 
         let normalized_freq = ((frequency / min_freq).log(log_base)

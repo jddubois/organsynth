@@ -157,7 +157,7 @@ fn equal_loudness_multiplier(frequency: f32) -> f32 {
 
     const FREQ_THRESHOLD: f32 = 1000.0;
     const FREQ_MAX: f32 = 4186.0;
-    const BOOST_MAX_DB: f32 = 10.0;
+    const BOOST_MAX_DB: f32 = 4.0;
 
     let boost_db = if frequency <= FREQ_THRESHOLD {
         0.0

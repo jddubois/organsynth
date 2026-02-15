@@ -15,6 +15,7 @@ impl InternalSynth {
             sample_rate,
             filters: vec![
                 Box::new(super::filters::LowPass::new(0.7)),
+                Box::new(super::filters::LowPass::new(0.7)),
                 Box::new(super::filters::Freeverb::new(sample_rate, reverb_config)),
             ],
             stops,
