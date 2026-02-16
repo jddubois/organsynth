@@ -29,11 +29,11 @@ impl Note {
 
     pub fn add_stop(&mut self, spec: &StopSpec) {
         let stop = spec.resolve(self.midi_note);
-        self.oscillators.push(Oscillator::from_stop(
-            &stop,
-            self.frequency,
-            self.sample_rate,
-        ));
+        let mut osc = Oscillator::from_stop(&stop, self.frequency, self.sample_rate);
+        if self.is_released {
+            osc.release();
+        }
+        self.oscillators.push(osc);
     }
 
     pub fn remove_stop(&mut self, spec: &StopSpec) {
