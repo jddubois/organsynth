@@ -16,9 +16,10 @@ module.exports = {
       },
       {
         name: "organsynth",
-        script: "cargo",
-        args: "run",
+        script: "npm",
+        args: "start",
         cwd: "/home/patch/organsynth/synth",
+        interpreter: "none",
       },
       {
         name: "a2jmidid",

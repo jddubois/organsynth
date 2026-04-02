@@ -1,9 +1,26 @@
 import express, { type Request, type Response } from "express";
 import midi from "midi";
 import cors from 'cors';
-import fs from 'fs';
-import TOML from 'smol-toml'
 import alsaVolume from "alsa-volume";
+
+const PRESETS = {
+  principal:          { cc: 21, channels: [1], displayName: 'Default'   },
+  grand_jeu:          { cc: 22, channels: [1], displayName: 'Pleno'     },
+  cornet:             { cc: 30, channels: [1], displayName: 'Cornet'    },
+  mixture:            { cc: 23, channels: [1], displayName: 'Mixture'   },
+  flute:              { cc: 24, channels: [1], displayName: 'Flute'     },
+  trumpet:            { cc: 27, channels: [1], displayName: 'Trumpet'   },
+  plein_jeu:          { cc: 28, channels: [1], displayName: 'Plein Jeu' },
+  pedalboard_default: { cc: 20, channels: [2], displayName: 'Default'   },
+  pedalboard_reed:    { cc: 29, channels: [2], displayName: 'Reed'      },
+  pedalboard_flute:   { cc: 25, channels: [2], displayName: 'Flute'     },
+  pedalboard_trumpet: { cc: 26, channels: [2], displayName: 'Trumpet'   },
+};
+
+const PRESET_DEFAULTS = [
+  { midi_channel: 1, channel_name: 'Manual',     preset_name: 'principal'          },
+  { midi_channel: 2, channel_name: 'Pedalboard', preset_name: 'pedalboard_default' },
+];
 
 declare global {
   namespace Express {
@@ -36,10 +53,12 @@ app.post("/midi", (req: Request, res: Response) => {
   res.sendStatus(200)
 });
 
-app.get("/config", (req: Request, res: Response) => {
-  const toml = fs.readFileSync('../Config.toml', 'utf8')
-  const { synth } =  TOML.parse(toml)
-  res.json(synth);
+app.get("/config", (_req: Request, res: Response) => {
+  const presets: Record<string, unknown> = {};
+  for (const [name, { cc, channels, displayName }] of Object.entries(PRESETS)) {
+    presets[name] = { midi_identifier: cc, channels, display_name: displayName };
+  }
+  res.json({ presets, preset_defaults: PRESET_DEFAULTS });
 });
 
 app.listen(PORT, HOST, () => {
