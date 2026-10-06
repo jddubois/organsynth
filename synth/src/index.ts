@@ -47,7 +47,15 @@ function saveState() {
 
 // ── Synth ────────────────────────────────────────────────────────────────────
 
-const synth = new Synth({ backend: BACKEND, threads: THREADS, overloadGuard: true, reverb: false });
+// releaseCulling ends release tails once they are 80 dB under the music (an inaudible change, per
+// supersynth's measurements), so the overload guard, which cuts tails audibly, rarely has to act.
+const synth = new Synth({
+  backend: BACKEND,
+  threads: THREADS,
+  overloadGuard: true,
+  releaseCulling: { belowMixDb: 80, hold: 'smooth' },
+  reverb: false,
+});
 synth.on('error', (e: Error) => console.error('synth error:', e.message));
 
 // Only organs whose packages are installed can be picked.

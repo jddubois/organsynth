@@ -7,6 +7,8 @@ module.exports = {
       args: "start",
       cwd: "/home/patch/organsynth/synth",
       interpreter: "none",
+      // All four cores render audio (GrandOrgue no longer competes for them).
+      env: { THREADS: "4" },
     },
   ],
 };

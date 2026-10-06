@@ -50,6 +50,10 @@ pm2 start ecosystem.config.js && pm2 save # on the Pi
 ## The Pi
 
 - `patch@patchbox.local`, repo at `/home/patch/organsynth`, Patchbox OS (Bookworm, Pi 5, 4 GB).
-- JACK runs as a system service (`/etc/jackdrc`: hw:DAC, 48 kHz, 128 frames); supersynth connects
+- JACK runs as a system service (hw:DAC, 48 kHz); supersynth connects
   to it. amidiminder (`/etc/amidiminder.rules`) auto-connects every hardware and app MIDI port.
-- Env overrides: `AUDIO_BACKEND`, `PORTS`, `STATE_FILE`.
+- JACK runs at 256 frames (`/etc/jackdrc`; 128 xruns on heavy registrations). pm2 runs under
+  `pm2-patch.service` with a drop-in giving it `LimitRTPRIO=95`, so the audio threads are real-time.
+- The DAC (pcm512x) is at 0 dB with de-emphasis and auto-mute off (`alsactl store`); volume is
+  set on the piano. Do not run `amixer` while audio plays: it causes xruns.
+- Env overrides: `AUDIO_BACKEND`, `PORTS`, `STATE_FILE`, `THREADS` (4 in `ecosystem.config.js`).
