@@ -16,7 +16,7 @@ One Node process, run by pm2 (`ecosystem.config.js`, app `organsynth`):
 - `src/index.ts` — creates the supersynth `Synth` (JACK backend on Linux, overload guard on), a
   grand piano and the selected organ; routes MIDI; serves the HTTP API and the built web app on
   ports 8080 and 5173 (5173 is where the old Vite dev server ran, so existing bookmarks work).
-  State (mode, organ, preset, piano preset, room per mode) is saved to `~/.organsynth.json`.
+  State (mode, organ, preset, piano preset, room per mode, pedal coupler) is saved to `~/.organsynth.json`.
   Master volume is per mode (`VOLUME`: organ 0.1, piano 0.5) so both play at the same level,
   times each organ's trim. Room: 'auto' (the instrument's own), 'off' or a supersynth reverb
   preset, per mode. A watchdog exits the process if the audio output stops (e.g. JACK
@@ -27,16 +27,17 @@ One Node process, run by pm2 (`ecosystem.config.js`, app `organsynth`):
 - `src/presets.ts` — six registrations per organ, soft to loud (soft flute, flutes, principal,
   principal chorus, plenum, full organ), picked from each organ's own supersynth presets in
   `CHOICES`, with Title Case `LABELS`. `oneKeyboard()` couples every manual a preset uses to the
-  great (the Donner is one keyboard) and adds an 8' pedal stop when the pedal has none (the
-  piano's small speakers barely reproduce 16' fundamentals); soft (flute) registrations only
-  ever get a flute. Organs without pedal stops couple
-  the pedal to the great.
+  great (the Donner is one keyboard), drops the presets' manual-to-pedal couplers (that's the
+  player's Manual → Pedal button; `withPedalCoupled()` couples every manual with stops, since
+  couplers don't chain) and adds an 8' pedal stop when the pedal has none (the piano's small
+  speakers barely reproduce 16' fundamentals); soft (flute) registrations only ever get a flute.
+  Organs without pedal stops (Green Positiv) are always coupled.
 - `src/organ.ts` — builds an organ: pedal stops get +18 dB headroom (`PEDAL_HEADROOM_DB`), then
-  each registration sets the pedal's expression from `src/balance.json`, plus the player's Pedal
-  offset (UI − / +, ±dB, saved in state; the measured balance can't know how much deep bass the
-  piano's speakers reproduce), and each organ gets a loudness trim from it.
+  each registration sets the pedal's expression from `src/balance.json`, and each organ gets a
+  loudness trim from it.
 - `scripts/balance.ts` — `npm run balance [-- <organ>…]` renders every registration offline and
-  writes `src/balance.json`: pedal expression so a pedal note sits 2 dB under a manual triad
+  writes `src/balance.json`: pedal expression so a pedal note sits 6 dB under a manual triad
+  (6 by ear on the Donner; uncoupled)
   (levels above 100 Hz, what the speakers reproduce), and per-organ trims (±6 dB) that match each
   organ's principal chorus to the median. Re-run it after changing presets or supersynth models.
 - `scripts/local-control.ts` — `npm run local-control -- off|on` from any computer the piano is on.
@@ -49,13 +50,13 @@ ignores the pedalboard. The Donner's three pedals are on/off (0/127) and are sen
 and 3 at once, so the pedalboard input also sees them on channel 2 (harmless: only notes are used there).
 
 HTTP API: `GET /api/state`; `POST /api/mode {mode}`, `/api/organ {organ}`,
-`/api/registration {registration}`, `/api/piano-preset {preset}`, `/api/room {room}`, `/api/pedal {pedal}` (dB offset). Each returns
+`/api/registration {registration}`, `/api/piano-preset {preset}`, `/api/room {room}`, `/api/pedal-coupler {on}`. Each returns
 the new state.
 Volume is set on the piano; the Pi's DAC stays at 0 dB.
 
 **stopmanager/** (React/Vite/Tailwind) — the phone UI: organ/piano switch, organ picker (‹ › and a
 list), the six presets by name (equal-size buttons; `src/FitText.tsx` shrinks long names), piano
-presets, room picker. `npm run build` produces `dist/`,
+presets, Manual → Pedal coupler, room picker. `npm run build` produces `dist/`,
 which the synth serves. `npm run dev` proxies `/api` to a synth on localhost:8080.
 
 **util/** — older Python/shell helpers (GPIO note sensor, MIDI file player).

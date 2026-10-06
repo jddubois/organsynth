@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Synth, ORGANS, type Instrument, type Organ, type OrganDefinition, type ReverbPreset } from '@supersynth/core';
 import { Devices, type Role } from './devices.ts';
-import { applyPedal, applyRegistration, organDefinition, organRegistrations, organTrim } from './organ.ts';
+import { applyRegistration, hasPedal, organDefinition, organRegistrations, organTrim } from './organ.ts';
 import { manualStops, type Registration } from './presets.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -27,11 +27,9 @@ interface State {
   pianoPreset: string;
   /** Per mode: 'auto' (the instrument's own room), 'off' or a reverb preset. */
   room: Record<Mode, string>;
-  /** The pedal's level in dB relative to the measured balance (set by ear for the speakers). */
-  pedalOffset: number;
+  /** The Manual → Pedal coupler. */
+  pedalCoupled: boolean;
 }
-
-const PEDAL_OFFSET_RANGE = [-18, 6];
 
 const ROOMS = ['auto', 'off', 'room', 'studio', 'chamber', 'hall', 'concert-hall', 'church', 'cathedral', 'plate'];
 
@@ -46,7 +44,7 @@ const DEFAULTS: State = {
   registration: 0,
   pianoPreset: 'default',
   room: { organ: 'auto', piano: 'auto' },
-  pedalOffset: 0,
+  pedalCoupled: false,
 };
 const saved = readState();
 const state: State = { ...DEFAULTS, ...saved, room: { ...DEFAULTS.room, ...saved.room } };
@@ -104,7 +102,7 @@ function loadOrgan(id: string): Organ {
   state.registration = Math.min(state.registration, registrations.length - 1);
   const started = Date.now();
   const added = synth.add(organDefinition(id), { preset: registrations[state.registration].preset });
-  applyRegistration(added, registrations, state.registration, state.pedalOffset);
+  applyRegistration(added, registrations, state.registration, state.pedalCoupled);
   console.log(`Organ ${id} ready to play in ${Date.now() - started} ms`);
   added.ready.then(
     () => console.log(`Organ ${id}: every stop loaded in ${Date.now() - started} ms`),
@@ -194,13 +192,12 @@ function setOrgan(id: string) {
 function setRegistration(index: number) {
   if (!(index in registrations)) throw new HttpError(400, `Unknown preset ${index + 1}`);
   state.registration = index;
-  applyRegistration(organ, registrations, index, state.pedalOffset);
+  applyRegistration(organ, registrations, index, state.pedalCoupled);
 }
 
-function setPedalOffset(db: number) {
-  if (!Number.isFinite(db)) throw new HttpError(400, 'pedal must be a number of dB');
-  state.pedalOffset = Math.max(PEDAL_OFFSET_RANGE[0], Math.min(PEDAL_OFFSET_RANGE[1], Math.round(db)));
-  applyPedal(organ, state.registration, state.pedalOffset);
+function setPedalCoupled(on: boolean) {
+  state.pedalCoupled = on;
+  applyRegistration(organ, registrations, state.registration, on);
 }
 
 function setRoom(room: string) {
@@ -223,8 +220,8 @@ async function snapshot() {
     registration: state.registration,
     registrations: registrations.map((r) => ({ label: r.label, manual: manualStops(r.preset), pedal: r.preset.pedal })),
     room: state.room[state.mode],
-    pedalOffset: state.pedalOffset,
-    pedalOffsetRange: PEDAL_OFFSET_RANGE,
+    pedalCoupled: state.pedalCoupled || !hasPedal(organ),
+    hasPedal: hasPedal(organ),
     rooms: ROOMS,
     pianoPreset: state.pianoPreset,
     pianoPresets: Object.keys(piano.presets()),
@@ -250,7 +247,7 @@ const ACTIONS: Record<string, (body: any) => void | Promise<void>> = {
   '/api/registration': (b) => setRegistration(Number(b.registration)),
   '/api/piano-preset': (b) => setPianoPreset(String(b.preset)),
   '/api/room': (b) => setRoom(String(b.room)),
-  '/api/pedal': (b) => setPedalOffset(Number(b.pedal)),
+  '/api/pedal-coupler': (b) => setPedalCoupled(Boolean(b.on)),
 };
 
 const MIME: Record<string, string> = {

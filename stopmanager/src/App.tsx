@@ -12,8 +12,8 @@ interface State {
   registrations: { label: string; manual: string[]; pedal: string[] }[];
   room: string;
   rooms: string[];
-  pedalOffset: number;
-  pedalOffsetRange: [number, number];
+  pedalCoupled: boolean;
+  hasPedal: boolean;
   pianoPreset: string;
   pianoPresets: string[];
 }
@@ -30,10 +30,13 @@ async function api(path: string, body?: object): Promise<State> {
   return data;
 }
 
-const roomLabel = (room: string, mode: Mode) =>
+// 'concert-hall' → 'Concert Hall'
+const roomLabel = (room: string) =>
   room === "auto"
-    ? mode === "organ" ? "The organ's own church" : "Automatic (hall)"
-    : room === "off" ? "Off (dry)" : room[0].toUpperCase() + room.slice(1).replace("-", " ");
+    ? "Default"
+    : room === "off"
+      ? "None"
+      : room.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 
 const tile = (active: boolean) => `
   rounded-2xl transition-all duration-200 cursor-pointer select-none active:scale-95
@@ -181,31 +184,21 @@ function App() {
         </div>
       )}
 
-      {/* Pedal level, set by ear for the speakers */}
+      {/* Manual → Pedal coupler (always on for an organ without pedal stops) */}
       {state.mode === "organ" && (
         <div className="w-full max-w-lg mx-auto flex items-center gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-widest text-organ-text-muted w-16">PEDAL</h2>
-          {[-2, 2].map((step) => {
-            const next = state.pedalOffset + step;
-            const [lo, hi] = state.pedalOffsetRange;
-            return (
-              <button
-                key={step}
-                aria-label={step < 0 ? "Pedal softer" : "Pedal louder"}
-                disabled={next < lo || next > hi}
-                onClick={() => {
-                  setState({ ...state, pedalOffset: next });
-                  run("pedal", { pedal: next });
-                }}
-                className={`${tile(false)} w-14 h-11 shrink-0 text-2xl font-bold disabled:opacity-30 ${step > 0 ? "order-last" : ""}`}
-              >
-                {step < 0 ? "−" : "+"}
-              </button>
-            );
-          })}
-          <span className="flex-1 text-center text-base font-medium text-organ-text tabular-nums">
-            {state.pedalOffset === 0 ? "Balanced" : `${state.pedalOffset > 0 ? "+" : "−"}${Math.abs(state.pedalOffset)} dB`}
-          </span>
+          <button
+            disabled={!state.hasPedal}
+            onClick={() => {
+              const on = !state.pedalCoupled;
+              setState({ ...state, pedalCoupled: on });
+              run("pedal-coupler", { on });
+            }}
+            className={`${tile(state.pedalCoupled)} flex-1 h-11 text-base font-bold disabled:opacity-60`}
+          >
+            {state.hasPedal ? "Manual → Pedal" : "Plays the manual"}
+          </button>
         </div>
       )}
 
@@ -213,7 +206,7 @@ function App() {
       <div className="w-full max-w-lg mx-auto flex items-center gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-widest text-organ-text-muted w-16">ROOM</h2>
         <div className="relative flex-1 rounded-2xl bg-organ-surface border-2 border-organ-border pl-4 pr-9 py-2.5">
-          <span className="text-base font-medium text-organ-text">{roomLabel(state.room, state.mode)}</span>
+          <span className="text-base font-medium text-organ-text">{roomLabel(state.room)}</span>
           <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-organ-text-muted">▾</span>
           <select
             value={state.room}
@@ -226,7 +219,7 @@ function App() {
           >
             {state.rooms.map((room) => (
               <option key={room} value={room}>
-                {roomLabel(room, state.mode)}
+                {roomLabel(room)}
               </option>
             ))}
           </select>

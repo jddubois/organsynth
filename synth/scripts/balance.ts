@@ -2,14 +2,15 @@
 //   npm run balance            (all organs)
 //   npm run balance -- burea   (some)
 // For each registration, the pedal's expression is set so a pedal note sits PEDAL_BELOW_DB under
-// a manual triad, and each organ gets a trim so its principal chorus is as loud as the others'.
+// a manual triad (pedal not coupled to the manual), and each organ gets a trim so its principal chorus is as loud as the others'.
 // Levels are measured above 100 Hz: what the piano's speakers actually reproduce.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { Synth, ORGANS, type OrganDefinition } from '@supersynth/core';
 import { organDefinition, type Balance } from '../src/organ.ts';
 import { registrations, type Registration } from '../src/presets.ts';
 
-const PEDAL_BELOW_DB = 2;
+// 6 dB: by ear on the Donner's speakers (2 dB measured right but sounded 4 dB too loud).
+const PEDAL_BELOW_DB = 6;
 const MAX_TRIM_DB = 6;
 const TRIM_SLOT = 3; // principal chorus
 const FILE = new URL('../src/balance.json', import.meta.url);

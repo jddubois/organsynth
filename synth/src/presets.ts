@@ -76,6 +76,13 @@ export function registrations(organ: OrganDefinition): Registration[] {
   });
 }
 
+/** The preset with the manuals the Donner plays coupled to the pedal too. Couplers don't chain
+ *  (pedal ← great doesn't bring what's coupled into the great), so every manual with stops is. */
+export function withPedalCoupled(preset: OrganPreset): OrganPreset {
+  const manuals = MANUALS.filter((m) => preset[m]?.length);
+  return { ...preset, couple: { ...preset.couple, pedal: manuals } };
+}
+
 /**
  * The Donner plays the great and the pedalboard the pedal, so every other manual a preset draws
  * on is coupled to the great. A pedal without an 8' stop gets one: the piano's small speakers
@@ -90,11 +97,12 @@ function oneKeyboard(organ: OrganDefinition, preset: OrganPreset, soft: boolean)
   }
   if (!toGreat.length) delete couple.great;
 
+  // Manual-to-pedal couplers are the player's choice (the Manual → Pedal button), not the preset's.
+  delete couple.pedal;
+
   const pedalStops = organ.stops.filter((s) => s.division === 'pedal');
   let pedal = [...(preset.pedal ?? [])];
-  if (!pedalStops.length) {
-    couple.pedal = [...new Set([...(couple.pedal ?? []), 'great' as const])];
-  } else if (!pedal.some((name) => Math.abs(footage(name) - 8) < 0.01)) {
+  if (pedalStops.length && !pedal.some((name) => Math.abs(footage(name) - 8) < 0.01)) {
     const eights = pedalStops.filter((s) => Math.abs(footage(s.name) - 8) < 0.01);
     // Soft (flute) registrations only ever get a flute: a principal under them is out of character.
     const order = soft ? ['flute'] : ['principal', 'flute', 'string', 'reed'];
