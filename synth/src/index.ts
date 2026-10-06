@@ -30,6 +30,11 @@ interface State {
 // play a little louder (on top of the 8' principal every registration draws, see presets.ts).
 const PEDAL_GAIN_DB = 4;
 
+// Master volume per mode (0–1). At the same setting a plenum chord peaks ~15 dB above a
+// fortissimo piano chord and runs into the limiter, so the organ plays 14 dB lower: the two
+// modes then match and the piano's volume knob has a usable range.
+const VOLUME: Record<Mode, number> = { organ: 0.1, piano: 0.5 };
+
 const DEFAULTS: State = { mode: 'organ', organ: 'friesach', registration: 0, pianoPreset: 'default' };
 const state: State = { ...DEFAULTS, ...readState() };
 
@@ -97,9 +102,9 @@ function loadOrgan(id: string): Organ {
 }
 
 function applyRoom() {
-  // Each instrument's own room: the organ recordings already carry their church.
+  // Each instrument's own room (the organ recordings already carry their church) and level.
   const room = state.mode === 'organ' ? (organ.definition.reverb ?? 'church') : (piano.definition.reverb ?? 'hall');
-  synth.set({ reverb: room });
+  synth.set({ reverb: room, volume: VOLUME[state.mode] });
 }
 
 applyRoom();

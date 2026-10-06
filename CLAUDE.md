@@ -17,7 +17,8 @@ One Node process, run by pm2 (`ecosystem.config.js`, app `organsynth`):
   grand piano and the selected organ; routes MIDI; serves the HTTP API and the built web app on
   ports 8080 and 5173 (5173 is where the old Vite dev server ran, so existing bookmarks work).
   State (mode, organ, preset, piano preset) is saved to `~/.organsynth.json`. Pedal stops get
-  +4 dB (`PEDAL_GAIN_DB`). A watchdog exits the process if the audio output stops (e.g. JACK
+  +4 dB (`PEDAL_GAIN_DB`). Master volume is per mode (`VOLUME`: organ 0.1, piano 0.5) so both
+  play at the same level. A watchdog exits the process if the audio output stops (e.g. JACK
   restarted) so pm2 restarts it.
 - `src/devices.ts` — opens the piano (`/piano/i`) and pedalboard (`/teensy/i`) MIDI inputs, polls
   every second to survive unplugging/power cycles, and sends Local Control Off (CC 122 = 0) to the
