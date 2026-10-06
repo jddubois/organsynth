@@ -96,7 +96,8 @@ function oneKeyboard(organ: OrganDefinition, preset: OrganPreset, soft: boolean)
     couple.pedal = [...new Set([...(couple.pedal ?? []), 'great' as const])];
   } else if (!pedal.some((name) => Math.abs(footage(name) - 8) < 0.01)) {
     const eights = pedalStops.filter((s) => Math.abs(footage(s.name) - 8) < 0.01);
-    const order = soft ? ['flute', 'principal', 'string', 'reed'] : ['principal', 'flute', 'string', 'reed'];
+    // Soft (flute) registrations only ever get a flute: a principal under them is out of character.
+    const order = soft ? ['flute'] : ['principal', 'flute', 'string', 'reed'];
     const eight = order.map((family) => eights.find((s) => s.family === family)).find(Boolean);
     if (eight) pedal = [...pedal, eight.name];
   }

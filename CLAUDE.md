@@ -28,11 +28,13 @@ One Node process, run by pm2 (`ecosystem.config.js`, app `organsynth`):
   principal chorus, plenum, full organ), picked from each organ's own supersynth presets in
   `CHOICES`, with Title Case `LABELS`. `oneKeyboard()` couples every manual a preset uses to the
   great (the Donner is one keyboard) and adds an 8' pedal stop when the pedal has none (the
-  piano's small speakers barely reproduce 16' fundamentals). Organs without pedal stops couple
+  piano's small speakers barely reproduce 16' fundamentals); soft (flute) registrations only
+  ever get a flute. Organs without pedal stops couple
   the pedal to the great.
 - `src/organ.ts` — builds an organ: pedal stops get +18 dB headroom (`PEDAL_HEADROOM_DB`), then
-  each registration sets the pedal's expression from `src/balance.json`, and each organ gets a
-  loudness trim from it.
+  each registration sets the pedal's expression from `src/balance.json`, plus the player's Pedal
+  offset (UI − / +, ±dB, saved in state; the measured balance can't know how much deep bass the
+  piano's speakers reproduce), and each organ gets a loudness trim from it.
 - `scripts/balance.ts` — `npm run balance [-- <organ>…]` renders every registration offline and
   writes `src/balance.json`: pedal expression so a pedal note sits 2 dB under a manual triad
   (levels above 100 Hz, what the speakers reproduce), and per-organ trims (±6 dB) that match each
@@ -47,7 +49,7 @@ ignores the pedalboard. The Donner's three pedals are on/off (0/127) and are sen
 and 3 at once, so the pedalboard input also sees them on channel 2 (harmless: only notes are used there).
 
 HTTP API: `GET /api/state`; `POST /api/mode {mode}`, `/api/organ {organ}`,
-`/api/registration {registration}`, `/api/piano-preset {preset}`, `/api/room {room}`. Each returns
+`/api/registration {registration}`, `/api/piano-preset {preset}`, `/api/room {room}`, `/api/pedal {pedal}` (dB offset). Each returns
 the new state.
 Volume is set on the piano; the Pi's DAC stays at 0 dB.
 

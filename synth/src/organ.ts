@@ -37,10 +37,16 @@ export function organRegistrations(id: string): Registration[] {
   return registrations(organDefinition(id));
 }
 
-/** Draw a registration and set the pedal's level for it. */
-export function applyRegistration(organ: Organ, regs: Registration[], index: number) {
+/** Draw a registration and set the pedal's level for it, `offsetDb` above or below the
+ *  measured balance (the player's Pedal setting; the pedal can't go above its headroom). */
+export function applyRegistration(organ: Organ, regs: Registration[], index: number, offsetDb = 0) {
   organ.preset(regs[index].preset);
-  organ.pedal.expression(balance[organ.definition.id]?.pedal[index] ?? DEFAULT_PEDAL);
+  applyPedal(organ, index, offsetDb);
+}
+
+export function applyPedal(organ: Organ, index: number, offsetDb: number) {
+  const measured = balance[organ.definition.id]?.pedal[index] ?? DEFAULT_PEDAL;
+  organ.pedal.expression(Math.min(1, measured * 10 ** (offsetDb / 20)));
 }
 
 /** The organ's loudness trim, as a linear gain. */

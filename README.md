@@ -18,6 +18,8 @@ Open **http://patchbox.local:5173** (or `:8080`) on a phone on the same network.
   Plenum, Full Organ (some organs use their own names, e.g. Fonds, Plein Jeu, Grand Chœur,
   Ripieno). They are the organ's own registrations, coupled so the one keyboard plays them, with
   the pedal level measured and set to sit just under the manual.
+- **Pedal**: − / + turns the pedal down or up (2 dB steps) on every organ, on top of the measured
+  balance, to suit the speakers.
 - **Room**: the organ's own church (default), off, or one of supersynth's rooms; the piano has
   its own setting.
 - **Piano presets**: default, bright, mellow, felt, concert, studio, honky-tonk, long sustain.
