@@ -3,9 +3,10 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Synth, ORGANS, type Instrument, type Organ, type OrganDefinition } from '@supersynth/core';
+import { Synth, ORGANS, type Instrument, type Organ, type OrganDefinition, type ReverbPreset } from '@supersynth/core';
 import { Devices, type Role } from './devices.ts';
-import { REGISTRATIONS, manualStops, resolveRegistration } from './presets.ts';
+import { applyRegistration, organDefinition, organRegistrations, organTrim } from './organ.ts';
+import { manualStops, type Registration } from './presets.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const UI_DIR = path.resolve(HERE, '../../stopmanager/dist');
@@ -24,19 +25,26 @@ interface State {
   /** Registration index, 0–5. */
   registration: number;
   pianoPreset: string;
+  /** Per mode: 'auto' (the instrument's own room), 'off' or a reverb preset. */
+  room: Record<Mode, string>;
 }
 
-// The pedal stops' fundamentals sit below what the piano's speakers reproduce well, so they
-// play a little louder (on top of the 8' principal every registration draws, see presets.ts).
-const PEDAL_GAIN_DB = 4;
+const ROOMS = ['auto', 'off', 'room', 'studio', 'chamber', 'hall', 'concert-hall', 'church', 'cathedral', 'plate'];
 
 // Master volume per mode (0–1). At the same setting a plenum chord peaks ~15 dB above a
 // fortissimo piano chord and runs into the limiter, so the organ plays 14 dB lower: the two
 // modes then match and the piano's volume knob has a usable range.
 const VOLUME: Record<Mode, number> = { organ: 0.1, piano: 0.5 };
 
-const DEFAULTS: State = { mode: 'organ', organ: 'friesach', registration: 0, pianoPreset: 'default' };
-const state: State = { ...DEFAULTS, ...readState() };
+const DEFAULTS: State = {
+  mode: 'organ',
+  organ: 'friesach',
+  registration: 0,
+  pianoPreset: 'default',
+  room: { organ: 'auto', piano: 'auto' },
+};
+const saved = readState();
+const state: State = { ...DEFAULTS, ...saved, room: { ...DEFAULTS.room, ...saved.room } };
 
 function readState(): Partial<State> {
   try {
@@ -83,16 +91,15 @@ const piano: Instrument = synth.add('grand-piano');
 if (!(state.pianoPreset in piano.presets())) state.pianoPreset = 'default';
 piano.preset(state.pianoPreset);
 
+let registrations: Registration[] = [];
 let organ: Organ = loadOrgan(state.organ);
 
 function loadOrgan(id: string): Organ {
-  const catalog = ORGANS[id as keyof typeof ORGANS] as OrganDefinition;
-  const def: OrganDefinition = {
-    ...catalog,
-    stops: catalog.stops.map((s) => (s.division === 'pedal' ? { ...s, gain: (s.gain ?? 0) + PEDAL_GAIN_DB } : s)),
-  };
+  registrations = organRegistrations(id);
+  state.registration = Math.min(state.registration, registrations.length - 1);
   const started = Date.now();
-  const added = synth.add(def, { preset: resolveRegistration(def, state.registration) });
+  const added = synth.add(organDefinition(id), { preset: registrations[state.registration].preset });
+  applyRegistration(added, registrations, state.registration);
   console.log(`Organ ${id} ready to play in ${Date.now() - started} ms`);
   added.ready.then(
     () => console.log(`Organ ${id}: every stop loaded in ${Date.now() - started} ms`),
@@ -102,9 +109,13 @@ function loadOrgan(id: string): Organ {
 }
 
 function applyRoom() {
-  // Each instrument's own room (the organ recordings already carry their church) and level.
-  const room = state.mode === 'organ' ? (organ.definition.reverb ?? 'church') : (piano.definition.reverb ?? 'hall');
-  synth.set({ reverb: room, volume: VOLUME[state.mode] });
+  // The room picked for this mode, or the instrument's own (the organ recordings already carry
+  // their church), and the level: per mode, and per organ so that every organ is as loud.
+  const own = state.mode === 'organ' ? (organ.definition.reverb ?? 'church') : (piano.definition.reverb ?? 'hall');
+  const room = state.room[state.mode];
+  const reverb = room === 'auto' ? own : room === 'off' ? false : (room as ReverbPreset);
+  const volume = VOLUME.organ * (state.mode === 'organ' ? organTrim(organ.definition.id) : 1);
+  synth.set({ reverb, volume: state.mode === 'organ' ? volume : VOLUME.piano });
 }
 
 applyRoom();
@@ -176,9 +187,15 @@ function setOrgan(id: string) {
 }
 
 function setRegistration(index: number) {
-  if (!(index in REGISTRATIONS)) throw new HttpError(400, `Unknown preset ${index + 1}`);
+  if (!(index in registrations)) throw new HttpError(400, `Unknown preset ${index + 1}`);
   state.registration = index;
-  organ.preset(resolveRegistration(organ.definition, index));
+  applyRegistration(organ, registrations, index);
+}
+
+function setRoom(room: string) {
+  if (!ROOMS.includes(room)) throw new HttpError(400, `Unknown room ${room}`);
+  state.room[state.mode] = room;
+  applyRoom();
 }
 
 function setPianoPreset(name: string) {
@@ -188,17 +205,14 @@ function setPianoPreset(name: string) {
 }
 
 async function snapshot() {
-  const def = organ.definition;
   return {
     mode: state.mode,
     organ: state.organ,
     organs,
     registration: state.registration,
-    registrations: REGISTRATIONS.map((r, i) => {
-      const preset = resolveRegistration(def, i);
-      const manual = manualStops(preset);
-      return { name: r.name, manual, pedal: preset.pedal };
-    }),
+    registrations: registrations.map((r) => ({ label: r.label, manual: manualStops(r.preset), pedal: r.preset.pedal })),
+    room: state.room[state.mode],
+    rooms: ROOMS,
     pianoPreset: state.pianoPreset,
     pianoPresets: Object.keys(piano.presets()),
     devices: devices.connected(),
@@ -222,6 +236,7 @@ const ACTIONS: Record<string, (body: any) => void | Promise<void>> = {
   '/api/organ': (b) => setOrgan(String(b.organ)),
   '/api/registration': (b) => setRegistration(Number(b.registration)),
   '/api/piano-preset': (b) => setPianoPreset(String(b.preset)),
+  '/api/room': (b) => setRoom(String(b.room)),
 };
 
 const MIME: Record<string, string> = {

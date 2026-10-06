@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 
-/** Lines of text centered in their box, shrunk until they fit it (never truncated). */
-export function FitText({ lines, max = 17, min = 9 }: { lines: string[]; max?: number; min?: number }) {
+/** Text centered in its box, shrunk until it fits (never truncated). */
+export function FitText({ text, max = 22, min = 10 }: { text: string; max?: number; min?: number }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -19,16 +19,11 @@ export function FitText({ lines, max = 17, min = 9 }: { lines: string[]; max?: n
     const observer = new ResizeObserver(fit);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [lines.join("\n"), max, min]);
+  }, [text, max, min]);
 
   return (
-    <div
-      ref={ref}
-      className="w-full h-full flex flex-col items-center justify-center gap-[0.3em] overflow-hidden leading-tight text-center"
-    >
-      {lines.map((line, i) => (
-        <span key={i}>{line}</span>
-      ))}
+    <div ref={ref} className="w-full h-full flex items-center justify-center overflow-hidden leading-tight text-center">
+      {text}
     </div>
   );
 }

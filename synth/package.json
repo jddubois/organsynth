@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node --import=tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "local-control": "node --import=tsx scripts/local-control.ts"
+    "local-control": "node --import=tsx scripts/local-control.ts",
+    "balance": "node --import=tsx scripts/balance.ts"
   },
   "dependencies": {
     "@julusian/midi": "^3.6.1",

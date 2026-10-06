@@ -9,7 +9,9 @@ interface State {
   organ: string;
   organs: { id: string; name: string }[];
   registration: number;
-  registrations: { name: string; manual: string[]; pedal: string[] }[];
+  registrations: { label: string; manual: string[]; pedal: string[] }[];
+  room: string;
+  rooms: string[];
   pianoPreset: string;
   pianoPresets: string[];
 }
@@ -25,6 +27,11 @@ async function api(path: string, body?: object): Promise<State> {
   if (!response.ok) throw new Error(data.error ?? response.statusText);
   return data;
 }
+
+const roomLabel = (room: string, mode: Mode) =>
+  room === "auto"
+    ? mode === "organ" ? "The organ's own church" : "Automatic (hall)"
+    : room === "off" ? "Off (dry)" : room[0].toUpperCase() + room.slice(1).replace("-", " ");
 
 const tile = (active: boolean) => `
   rounded-2xl transition-all duration-200 cursor-pointer select-none active:scale-95
@@ -145,9 +152,9 @@ function App() {
                   setState({ ...state, registration: i });
                   run("registration", { registration: i });
                 }}
-                className={`${tile(state.registration === i)} min-h-0 overflow-hidden px-2 py-3 font-semibold`}
+                className={`${tile(state.registration === i)} min-h-0 overflow-hidden px-3 py-3 font-bold`}
               >
-                <FitText lines={r.manual} />
+                <FitText text={r.label} />
               </button>
             ))}
           </div>
@@ -171,6 +178,30 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Room */}
+      <div className="w-full max-w-lg mx-auto flex items-center gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-organ-text-muted">ROOM</h2>
+        <div className="relative flex-1 rounded-2xl bg-organ-surface border-2 border-organ-border pl-4 pr-9 py-2.5">
+          <span className="text-base font-medium text-organ-text">{roomLabel(state.room, state.mode)}</span>
+          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-organ-text-muted">▾</span>
+          <select
+            value={state.room}
+            onChange={(e) => {
+              setState({ ...state, room: e.target.value });
+              run("room", { room: e.target.value });
+            }}
+            aria-label="Room"
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          >
+            {state.rooms.map((room) => (
+              <option key={room} value={room}>
+                {roomLabel(room, state.mode)}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {error && <p className="text-center text-sm text-red-400">{error}</p>}
     </div>

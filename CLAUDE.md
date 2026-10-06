@@ -16,19 +16,27 @@ One Node process, run by pm2 (`ecosystem.config.js`, app `organsynth`):
 - `src/index.ts` — creates the supersynth `Synth` (JACK backend on Linux, overload guard on), a
   grand piano and the selected organ; routes MIDI; serves the HTTP API and the built web app on
   ports 8080 and 5173 (5173 is where the old Vite dev server ran, so existing bookmarks work).
-  State (mode, organ, preset, piano preset) is saved to `~/.organsynth.json`. Pedal stops get
-  +4 dB (`PEDAL_GAIN_DB`). Master volume is per mode (`VOLUME`: organ 0.1, piano 0.5) so both
-  play at the same level. A watchdog exits the process if the audio output stops (e.g. JACK
+  State (mode, organ, preset, piano preset, room per mode) is saved to `~/.organsynth.json`.
+  Master volume is per mode (`VOLUME`: organ 0.1, piano 0.5) so both play at the same level,
+  times each organ's trim. Room: 'auto' (the instrument's own), 'off' or a supersynth reverb
+  preset, per mode. A watchdog exits the process if the audio output stops (e.g. JACK
   restarted) so pm2 restarts it.
 - `src/devices.ts` — opens the piano (`/piano/i`) and pedalboard (`/teensy/i`) MIDI inputs, polls
   every second to survive unplugging/power cycles, and sends Local Control Off (CC 122 = 0) to the
   piano every second so its internal sound stays silent (the piano forgets it when powered off).
-- `src/presets.ts` — the six numbered registrations (originally GrandOrgue General combinations
-  1–6), described by stop family and footage and resolved against whichever organ is selected.
-  Each button lists the stops the Donner plays, from every manual, without saying which (a
-  name drawn on two manuals shows as "Flöte 4' ×2"; no numbers; equal-size buttons, text shrinks to fit via
-  `stopmanager/src/FitText.tsx`). Every pedal registration includes an 8' principal: the piano's small speakers barely play the
-  16'/8' flute fundamentals.
+- `src/presets.ts` — six registrations per organ, soft to loud (soft flute, flutes, principal,
+  principal chorus, plenum, full organ), picked from each organ's own supersynth presets in
+  `CHOICES`, with Title Case `LABELS`. `oneKeyboard()` couples every manual a preset uses to the
+  great (the Donner is one keyboard) and adds an 8' pedal stop when the pedal has none (the
+  piano's small speakers barely reproduce 16' fundamentals). Organs without pedal stops couple
+  the pedal to the great.
+- `src/organ.ts` — builds an organ: pedal stops get +18 dB headroom (`PEDAL_HEADROOM_DB`), then
+  each registration sets the pedal's expression from `src/balance.json`, and each organ gets a
+  loudness trim from it.
+- `scripts/balance.ts` — `npm run balance [-- <organ>…]` renders every registration offline and
+  writes `src/balance.json`: pedal expression so a pedal note sits 2 dB under a manual triad
+  (levels above 100 Hz, what the speakers reproduce), and per-organ trims (±6 dB) that match each
+  organ's principal chorus to the median. Re-run it after changing presets or supersynth models.
 - `scripts/local-control.ts` — `npm run local-control -- off|on` from any computer the piano is on.
 
 Each device has its own input, filtered to its channel (piano 1, pedalboard 2), because
@@ -39,11 +47,13 @@ ignores the pedalboard. The Donner's three pedals are on/off (0/127) and are sen
 and 3 at once, so the pedalboard input also sees them on channel 2 (harmless: only notes are used there).
 
 HTTP API: `GET /api/state`; `POST /api/mode {mode}`, `/api/organ {organ}`,
-`/api/registration {registration}`, `/api/piano-preset {preset}`. Each returns the new state.
+`/api/registration {registration}`, `/api/piano-preset {preset}`, `/api/room {room}`. Each returns
+the new state.
 Volume is set on the piano; the Pi's DAC stays at 0 dB.
 
 **stopmanager/** (React/Vite/Tailwind) — the phone UI: organ/piano switch, organ picker (‹ › and a
-list), presets 1–6, piano presets. `npm run build` produces `dist/`,
+list), the six presets by name (equal-size buttons; `src/FitText.tsx` shrinks long names), piano
+presets, room picker. `npm run build` produces `dist/`,
 which the synth serves. `npm run dev` proxies `/api` to a synth on localhost:8080.
 
 **util/** — older Python/shell helpers (GPIO note sensor, MIDI file player).

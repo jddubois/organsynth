@@ -14,18 +14,12 @@ Open **http://patchbox.local:5173** (or `:8080`) on a phone on the same network.
 - **Organ / Piano** switches what the keyboard plays. In piano mode the sustain pedal works and
   the pedalboard is silent.
 - **Organ**: step through the organs with ‹ ›, or pick one from the list.
-- **Presets**: six registrations (the stops drawn); each button lists its manual stops. They
-  come from the old GrandOrgue setup and are matched to whichever organ is selected:
-
-  | # | Manual | Pedal |
-  |---|---|---|
-  | 1 | Principal 8' | Subbass 16', Gedackt 8', Octave 8' |
-  | 2 | Principals 8' 4', swell flute 8' + gamba coupled | + Contrabass 16' |
-  | 3 | Flutes 8' 4' on both manuals | + Flute 4' |
-  | 4 | Foundations: principals, flutes, Bourdon 16', gamba | + Cello 8' |
-  | 5 | Plenum with mixture, swell oboe + 2' coupled | full pedal, great coupled to pedal |
-  | 6 | Principals 8' 4' + Bourdon 16' | Subbass, Gedackt, Contrabass, Octave 8' |
-
+- **Presets**: six per organ, soft to loud: Soft Flute, Flutes, Principal, Principal Chorus,
+  Plenum, Full Organ (some organs use their own names, e.g. Fonds, Plein Jeu, Grand Chœur,
+  Ripieno). They are the organ's own registrations, coupled so the one keyboard plays them, with
+  the pedal level measured and set to sit just under the manual.
+- **Room**: the organ's own church (default), off, or one of supersynth's rooms; the piano has
+  its own setting.
 - **Piano presets**: default, bright, mellow, felt, concert, studio, honky-tonk, long sustain.
 - **Volume** is the piano's volume knob; the Pi always plays at full level.
 
@@ -42,8 +36,8 @@ Teensy pedalboard   ┘   ↑ Local Control Off → Donner     └─ HTTP :8080
 
 - **synth/** — the service: supersynth with a grand piano and the selected organ, MIDI input from
   both devices (reconnecting after unplugging or power cycles), Local Control Off to the piano,
-  and the HTTP API plus the built web app. `src/presets.ts` turns presets 1–6 into stops by stop
-  family and footage, so they work on any organ.
+  and the HTTP API plus the built web app. `src/presets.ts` picks each organ's six presets;
+  `npm run balance` measures them and stores the pedal levels and organ trims in `src/balance.json`.
 - **stopmanager/** — the React phone UI, built to `dist/` and served by the synth.
 - **util/** — older helpers (GPIO note sensor, MIDI file player).
 
