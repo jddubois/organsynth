@@ -7,7 +7,9 @@ import type { OrganDefinition, OrganPreset, StopDefinition, StopFamily } from '@
 // The Donner plays the great and the pedalboard plays the pedal. A manual stop found on
 // another manual (e.g. the swell) is coupled to the great so it sounds from the Donner.
 // Combinations 1 and 6 also drew reeds on an uncoupled swell, which the Donner never
-// played, so they are left out.
+// played, so they are left out. Every pedal registration also gets an 8' principal: the piano's
+// small speakers barely reproduce the 16' and 8' flutes' fundamentals (32–130 Hz), so without
+// it the pedal line all but disappears.
 
 type Manual = 'great' | 'swell' | 'positive';
 
@@ -46,6 +48,7 @@ const subbass: Want = { family: ['flute'], feet: 16, prefer: /sub|sous|soub|unte
 const pedalGedackt: Want = { family: ['flute'], feet: 8, prefer: STOPPED_FLUTE };
 const contrabass: Want = { family: ['principal', 'string'], feet: 16, prefer: /contra|kontra|principal|prestant|violon/i };
 const cello: Want = { family: ['string', 'principal'], feet: 8, prefer: /cell|violon|viol/i };
+const pedalPrincipal8: Want = { family: ['principal', 'string', 'flute'], feet: 8, prefer: /oct|princip|prestant|choral/i };
 const pedalFlute4: Want = { family: ['flute', 'principal'], feet: 4, prefer: /fl|choral/i };
 
 export const REGISTRATIONS: Registration[] = [
@@ -53,34 +56,34 @@ export const REGISTRATIONS: Registration[] = [
     name: 'Montre',
     great: [principal(8)],
     swell: [],
-    pedal: [subbass, pedalGedackt],
+    pedal: [subbass, pedalGedackt, pedalPrincipal8],
   },
   {
     name: 'Fonds 8 4',
     great: [principal(8), principal(4)],
     swell: [stoppedFlute(8), gamba],
-    pedal: [subbass, pedalGedackt, contrabass],
+    pedal: [subbass, pedalGedackt, contrabass, pedalPrincipal8],
     swellToGreat: true,
   },
   {
     name: 'Flutes',
     great: [openFlute(8), { family: ['flute'], feet: 4 }],
     swell: [stoppedFlute(8), { family: ['flute'], feet: 4 }],
-    pedal: [subbass, pedalGedackt, pedalFlute4],
+    pedal: [subbass, pedalGedackt, pedalPrincipal8, pedalFlute4],
     swellToGreat: true,
   },
   {
     name: 'Fonds',
     great: [principal(8), principal(4), stoppedFlute(16), openFlute(8), { family: ['flute'], feet: 4 }],
     swell: [stoppedFlute(8), { family: ['flute'], feet: 4 }, gamba],
-    pedal: [subbass, pedalGedackt, contrabass, cello, pedalFlute4],
+    pedal: [subbass, pedalGedackt, contrabass, pedalPrincipal8, cello, pedalFlute4],
     swellToGreat: true,
   },
   {
     name: 'Plein jeu',
     great: [principal(8), principal(4), mixture, stoppedFlute(16)],
     swell: [stoppedFlute(8), oboe, { family: ['flute', 'principal'], feet: 2 }],
-    pedal: [subbass, pedalGedackt, contrabass, cello, pedalFlute4],
+    pedal: [subbass, pedalGedackt, contrabass, pedalPrincipal8, cello, pedalFlute4],
     swellToGreat: true,
     greatToPedal: true,
   },
@@ -88,7 +91,7 @@ export const REGISTRATIONS: Registration[] = [
     name: 'Grand 16',
     great: [principal(8), principal(4), stoppedFlute(16)],
     swell: [],
-    pedal: [subbass, pedalGedackt, contrabass],
+    pedal: [subbass, pedalGedackt, contrabass, pedalPrincipal8],
   },
 ];
 

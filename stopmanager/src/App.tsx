@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 
 type Mode = "organ" | "piano";
@@ -11,9 +11,6 @@ interface State {
   registrations: { name: string; manual: string[]; pedal: string[] }[];
   pianoPreset: string;
   pianoPresets: string[];
-  devices: { piano: boolean; pedalboard: boolean };
-  cpu: number;
-  overloaded: boolean;
 }
 
 // Served by the synth itself, so the API is on the same origin.
@@ -40,9 +37,15 @@ function App() {
   const [state, setState] = useState<State | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Bumped by every action, so a poll that started before a tap can't undo it.
+  const actions = useRef(0);
+
   const run = useCallback(async (path: string, body?: object) => {
+    const seq = body ? ++actions.current : actions.current;
     try {
-      setState(await api(path, body));
+      const next = await api(path, body);
+      if (seq !== actions.current) return;
+      setState(next);
       setError(null);
     } catch (err) {
       setError((err as Error).message);
@@ -65,6 +68,17 @@ function App() {
 
   const heading = "text-sm font-semibold uppercase tracking-widest text-organ-text-muted mb-3";
 
+  // An organ id, or a step through the list (wrapping around).
+  const selectOrgan = (target: string | number) => {
+    const ids = state.organs.map((o) => o.id);
+    const organ =
+      typeof target === "string"
+        ? target
+        : ids[(ids.indexOf(state.organ) + target + ids.length) % ids.length];
+    setState({ ...state, organ });
+    run("organ", { organ });
+  };
+
   return (
     <div className="fixed inset-0 bg-organ-bg flex flex-col gap-5 p-4 overflow-y-auto">
       {/* Organ / piano */}
@@ -85,21 +99,36 @@ function App() {
 
       {state.mode === "organ" ? (
         <div className="flex-1 flex flex-col min-h-0 w-full max-w-lg mx-auto">
-          <select
-            value={state.organ}
-            onChange={(e) => {
-              setState({ ...state, organ: e.target.value });
-              run("organ", { organ: e.target.value });
-            }}
-            className="mb-5 w-full rounded-xl bg-organ-surface border-2 border-organ-border px-4 py-3
-                       text-lg text-organ-text font-medium appearance-none cursor-pointer"
-          >
-            {state.organs.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
+          <h2 className={heading}>ORGAN</h2>
+          <div className="mb-5 flex gap-2">
+            {[-1, 1].map((step) => (
+              <button
+                key={step}
+                aria-label={step < 0 ? "Previous organ" : "Next organ"}
+                onClick={() => selectOrgan(step)}
+                className={`${tile(false)} w-14 shrink-0 text-2xl font-bold ${step > 0 ? "order-last" : ""}`}
+              >
+                {step < 0 ? "‹" : "›"}
+              </button>
             ))}
-          </select>
+            <div className="relative flex-1 min-w-0">
+              <select
+                value={state.organ}
+                onChange={(e) => selectOrgan(e.target.value)}
+                className="w-full h-full rounded-2xl bg-organ-surface border-2 border-organ-border pl-4 pr-10 py-3
+                           text-lg text-organ-text font-medium appearance-none cursor-pointer truncate"
+              >
+                {state.organs.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-organ-text-muted">
+                ▾
+              </span>
+            </div>
+          </div>
 
           <h2 className={heading}>PRESETS</h2>
           <div className="grid grid-cols-2 gap-4 flex-1 min-h-[18rem]">
@@ -140,13 +169,7 @@ function App() {
         </div>
       )}
 
-      {/* Status */}
-      <div className="flex justify-center gap-4 text-xs text-organ-text-muted">
-        <span>Piano {state.devices.piano ? "●" : "○"}</span>
-        <span>Pedalboard {state.devices.pedalboard ? "●" : "○"}</span>
-        <span className={state.overloaded ? "text-red-400" : ""}>CPU {Math.round(state.cpu * 100)}%</span>
-        {error && <span className="text-red-400">{error}</span>}
-      </div>
+      {error && <p className="text-center text-sm text-red-400">{error}</p>}
     </div>
   );
 }

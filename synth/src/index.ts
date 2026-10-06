@@ -26,6 +26,10 @@ interface State {
   pianoPreset: string;
 }
 
+// The pedal stops' fundamentals sit below what the piano's speakers reproduce well, so they
+// play a little louder (on top of the 8' principal every registration draws, see presets.ts).
+const PEDAL_GAIN_DB = 4;
+
 const DEFAULTS: State = { mode: 'organ', organ: 'friesach', registration: 0, pianoPreset: 'default' };
 const state: State = { ...DEFAULTS, ...readState() };
 
@@ -77,7 +81,11 @@ piano.preset(state.pianoPreset);
 let organ: Organ = loadOrgan(state.organ);
 
 function loadOrgan(id: string): Organ {
-  const def = ORGANS[id as keyof typeof ORGANS] as OrganDefinition;
+  const catalog = ORGANS[id as keyof typeof ORGANS] as OrganDefinition;
+  const def: OrganDefinition = {
+    ...catalog,
+    stops: catalog.stops.map((s) => (s.division === 'pedal' ? { ...s, gain: (s.gain ?? 0) + PEDAL_GAIN_DB } : s)),
+  };
   const started = Date.now();
   const added = synth.add(def, { preset: resolveRegistration(def, state.registration) });
   console.log(`Organ ${id} ready to play in ${Date.now() - started} ms`);
@@ -97,6 +105,13 @@ function applyRoom() {
 applyRoom();
 await synth.start();
 console.log(`Audio running (${BACKEND}) at ${synth.sampleRate} Hz on ${synth.threads} threads`);
+
+// If the audio output dies (e.g. JACK restarts), exit so pm2 starts a fresh synth.
+setInterval(() => {
+  if (synth.isRunning && !synth.engineError) return;
+  console.error(`Audio output stopped${synth.engineError ? `: ${synth.engineError}` : ''}; restarting`);
+  process.exit(1);
+}, 2000);
 
 // ── MIDI ─────────────────────────────────────────────────────────────────────
 

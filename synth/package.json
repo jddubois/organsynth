@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "node --import=tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "local-control": "node --import=tsx scripts/local-control.ts"
   },
   "dependencies": {
     "@julusian/midi": "^3.6.1",
