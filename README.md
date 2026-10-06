@@ -9,6 +9,6 @@ A pipe organ and piano for a Raspberry Pi, played from a digital piano and a MID
   keeps the digital piano's own sound switched off (MIDI Local Control Off), and serves the web app.
 
 * StopManager- a react app for a phone on the same network: switch between organ and piano, pick
-  an organ, choose one of six registrations and set the output level.
+  an organ, and choose one of six registrations.
 
 Open `http://patchbox.local:8080` (or `:5173`) on the phone.

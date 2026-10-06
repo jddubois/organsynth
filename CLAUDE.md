@@ -29,11 +29,11 @@ amidiminder connects every hardware port to both inputs. Organ mode sends the pi
 (CC 64 = sustain) and ignores the pedalboard.
 
 HTTP API: `GET /api/state`; `POST /api/mode {mode}`, `/api/organ {organ}`,
-`/api/registration {registration}`, `/api/piano-preset {preset}`, `/api/volume {volume}` (ALSA
-`Digital` on card `DAC`, dB-mapped percent). Each returns the new state.
+`/api/registration {registration}`, `/api/piano-preset {preset}`. Each returns the new state.
+Volume is set on the piano; the Pi's DAC stays at 0 dB.
 
 **stopmanager/** (React/Vite/Tailwind) — the phone UI: organ/piano switch, organ picker, presets
-1–6, piano presets, HEADPHONE (12%) / SPEAKER (100%) output. `npm run build` produces `dist/`,
+1–6, piano presets. `npm run build` produces `dist/`,
 which the synth serves. `npm run dev` proxies `/api` to a synth on localhost:8080.
 
 **util/** — older Python/shell helpers (GPIO note sensor, MIDI file player).
@@ -52,4 +52,4 @@ pm2 start ecosystem.config.js && pm2 save # on the Pi
 - `patch@patchbox.local`, repo at `/home/patch/organsynth`, Patchbox OS (Bookworm, Pi 5, 4 GB).
 - JACK runs as a system service (`/etc/jackdrc`: hw:DAC, 48 kHz, 128 frames); supersynth connects
   to it. amidiminder (`/etc/amidiminder.rules`) auto-connects every hardware and app MIDI port.
-- Env overrides: `AUDIO_BACKEND`, `PORTS`, `STATE_FILE`, `VOLUME_CARD`, `VOLUME_CONTROL`.
+- Env overrides: `AUDIO_BACKEND`, `PORTS`, `STATE_FILE`.

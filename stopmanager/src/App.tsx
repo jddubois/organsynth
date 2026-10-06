@@ -11,16 +11,10 @@ interface State {
   registrations: { name: string; manual: string[]; pedal: string[] }[];
   pianoPreset: string;
   pianoPresets: string[];
-  volume: number | null;
   devices: { piano: boolean; pedalboard: boolean };
   cpu: number;
   overloaded: boolean;
 }
-
-const OUTPUT_MODES = [
-  { label: "HEADPHONE", volume: 12 },
-  { label: "SPEAKER", volume: 100 },
-];
 
 // Served by the synth itself, so the API is on the same origin.
 async function api(path: string, body?: object): Promise<State> {
@@ -145,26 +139,6 @@ function App() {
           </div>
         </div>
       )}
-
-      {/* Output / volume modes */}
-      <div className="flex flex-col w-full max-w-lg mx-auto">
-        <h2 className={heading}>OUTPUT</h2>
-        <div className="grid grid-cols-2 gap-4">
-          {OUTPUT_MODES.map(({ label, volume }) => (
-            <button
-              key={label}
-              onClick={() => {
-                setState({ ...state, volume });
-                run("volume", { volume });
-              }}
-              className={`${tile(state.volume === volume)} py-5 flex flex-col items-center justify-center gap-1`}
-            >
-              <span className="text-xl font-bold tracking-wide">{label}</span>
-              <span className="text-sm font-medium opacity-70">{volume}%</span>
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Status */}
       <div className="flex justify-center gap-4 text-xs text-organ-text-muted">

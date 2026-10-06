@@ -1,6 +1,4 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
@@ -9,7 +7,6 @@ import { Synth, ORGANS, type Instrument, type Organ, type OrganDefinition } from
 import { Devices, type Role } from './devices.ts';
 import { REGISTRATIONS, resolveRegistration } from './presets.ts';
 
-const execFileP = promisify(execFile);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const UI_DIR = path.resolve(HERE, '../../stopmanager/dist');
 // 5173 is where the phone's bookmark points (the old Vite dev server).
@@ -17,9 +14,8 @@ const PORTS = (process.env.PORTS ?? '8080,5173').split(',').map(Number);
 const STATE_FILE = process.env.STATE_FILE ?? path.join(homedir(), '.organsynth.json');
 // The Pi's JACK server owns the DAC; elsewhere use the default device.
 const BACKEND = (process.env.AUDIO_BACKEND ?? (process.platform === 'linux' ? 'jack' : 'auto')) as 'jack' | 'auto';
-// ALSA mixer for the HEADPHONE / SPEAKER buttons (the DAC's hardware volume).
-const VOLUME_CARD = process.env.VOLUME_CARD ?? 'DAC';
-const VOLUME_CONTROL = process.env.VOLUME_CONTROL ?? 'Digital';
+// Render threads; 'auto' is one per core but one (3 on a Pi 5).
+const THREADS = process.env.THREADS ? Number(process.env.THREADS) : 'auto';
 
 type Mode = 'organ' | 'piano';
 interface State {
@@ -51,7 +47,7 @@ function saveState() {
 
 // ── Synth ────────────────────────────────────────────────────────────────────
 
-const synth = new Synth({ backend: BACKEND, overloadGuard: true, reverb: false });
+const synth = new Synth({ backend: BACKEND, threads: THREADS, overloadGuard: true, reverb: false });
 synth.on('error', (e: Error) => console.error('synth error:', e.message));
 
 // Only organs whose packages are installed can be picked.
@@ -150,27 +146,6 @@ function setPianoPreset(name: string) {
   piano.preset(name);
 }
 
-// Read the mixer once: touching the DAC's mixer while audio plays causes xruns, so the
-// state reports the last value instead of asking amixer on every poll.
-let volume = await getVolume();
-
-async function getVolume(): Promise<number | null> {
-  try {
-    const { stdout } = await execFileP('amixer', ['-M', '-c', VOLUME_CARD, 'sget', VOLUME_CONTROL]);
-    const match = stdout.match(/\[(\d+)%\]/);
-    return match ? Number(match[1]) : null;
-  } catch {
-    return null;
-  }
-}
-
-async function setVolume(percent: number) {
-  if (!Number.isFinite(percent)) throw new HttpError(400, 'volume must be a number 0–100');
-  const value = Math.max(0, Math.min(100, Math.round(percent)));
-  await execFileP('amixer', ['-M', '-c', VOLUME_CARD, 'sset', VOLUME_CONTROL, `${value}%`]);
-  volume = value;
-}
-
 async function snapshot() {
   const def = organ.definition;
   return {
@@ -184,11 +159,11 @@ async function snapshot() {
     }),
     pianoPreset: state.pianoPreset,
     pianoPresets: Object.keys(piano.presets()),
-    volume,
     devices: devices.connected(),
     cpu: synth.cpuLoad,
     voices: synth.activeVoices,
     overloaded: synth.guardActive,
+    guard: synth.guardStats,
   };
 }
 
@@ -205,7 +180,6 @@ const ACTIONS: Record<string, (body: any) => void | Promise<void>> = {
   '/api/organ': (b) => setOrgan(String(b.organ)),
   '/api/registration': (b) => setRegistration(Number(b.registration)),
   '/api/piano-preset': (b) => setPianoPreset(String(b.preset)),
-  '/api/volume': (b) => setVolume(Number(b.volume)),
 };
 
 const MIME: Record<string, string> = {
