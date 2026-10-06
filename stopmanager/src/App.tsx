@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
+import { FitText } from "./FitText";
 
 type Mode = "organ" | "piano";
 
@@ -136,7 +137,7 @@ function App() {
           </div>
 
           <h2 className={heading}>PRESETS</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 grid-rows-3 gap-4 flex-1 min-h-[18rem]">
             {state.registrations.map((r, i) => (
               <button
                 key={i}
@@ -144,12 +145,9 @@ function App() {
                   setState({ ...state, registration: i });
                   run("registration", { registration: i });
                 }}
-                className={`${tile(state.registration === i)} flex flex-col items-center justify-center gap-1.5 px-2 py-3
-                            text-base font-semibold leading-tight text-center`}
+                className={`${tile(state.registration === i)} min-h-0 overflow-hidden px-2 py-3 font-semibold`}
               >
-                {r.manual.map((stop) => (
-                  <span key={stop}>{stop}</span>
-                ))}
+                <FitText lines={r.manual} />
               </button>
             ))}
           </div>
