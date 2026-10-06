@@ -38,6 +38,17 @@ const roomLabel = (room: string) =>
       ? "None"
       : room.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 
+/** A chevron centered in its box ("left", "right" or "down"). */
+function Chevron({ direction, className = "" }: { direction: "left" | "right" | "down"; className?: string }) {
+  const points = { left: "15 5 8 12 15 19", right: "9 5 16 12 9 19", down: "6 9 12 15 18 9" }[direction];
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={`block ${className}`} fill="none" stroke="currentColor"
+         strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points={points} />
+    </svg>
+  );
+}
+
 const tile = (active: boolean) => `
   rounded-2xl transition-all duration-200 cursor-pointer select-none active:scale-95
   ${
@@ -119,9 +130,9 @@ function App() {
                 key={step}
                 aria-label={step < 0 ? "Previous organ" : "Next organ"}
                 onClick={() => selectOrgan(step)}
-                className={`${tile(false)} w-14 shrink-0 text-2xl font-bold ${step > 0 ? "order-last" : ""}`}
+                className={`${tile(false)} w-14 shrink-0 flex items-center justify-center ${step > 0 ? "order-last" : ""}`}
               >
-                {step < 0 ? "‹" : "›"}
+                <Chevron direction={step < 0 ? "left" : "right"} className="w-7 h-7" />
               </button>
             ))}
             {/* The full name, wrapping if needed, with the native picker invisibly on top. */}
@@ -130,9 +141,7 @@ function App() {
               <span className="text-lg font-medium leading-tight text-organ-text">
                 {state.organs.find((o) => o.id === state.organ)?.name}
               </span>
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-organ-text-muted">
-                ▾
-              </span>
+              <Chevron direction="down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-organ-text-muted" />
               <select
                 value={state.organ}
                 onChange={(e) => selectOrgan(e.target.value)}
@@ -207,7 +216,7 @@ function App() {
         <h2 className="text-sm font-semibold uppercase tracking-widest text-organ-text-muted w-16">ROOM</h2>
         <div className="relative flex-1 rounded-2xl bg-organ-surface border-2 border-organ-border pl-4 pr-9 py-2.5">
           <span className="text-base font-medium text-organ-text">{roomLabel(state.room)}</span>
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-organ-text-muted">▾</span>
+          <Chevron direction="down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-organ-text-muted" />
           <select
             value={state.room}
             onChange={(e) => {
