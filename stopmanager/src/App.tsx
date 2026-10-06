@@ -1,212 +1,178 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
-import { useConfig } from "./config";
 
-function sendMidi(message: Array<number>) {
-  fetch("http://192.168.1.21:8080/midi", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(message),
+type Mode = "organ" | "piano";
+
+interface State {
+  mode: Mode;
+  organ: string;
+  organs: { id: string; name: string }[];
+  registration: number;
+  registrations: { name: string; manual: string[]; pedal: string[] }[];
+  pianoPreset: string;
+  pianoPresets: string[];
+  volume: number | null;
+  devices: { piano: boolean; pedalboard: boolean };
+  cpu: number;
+  overloaded: boolean;
+}
+
+const OUTPUT_MODES = [
+  { label: "HEADPHONE", volume: 12 },
+  { label: "SPEAKER", volume: 100 },
+];
+
+// Served by the synth itself, so the API is on the same origin.
+async function api(path: string, body?: object): Promise<State> {
+  const response = await fetch(`/api/${path}`, {
+    method: body ? "POST" : "GET",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
   });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error ?? response.statusText);
+  return data;
 }
 
-function createCCMessage(channel: number, controlNumber: number, value: number) {
-  if (channel < 1 || channel > 16) {
-    throw new Error("Channel must be between 1 and 16.");
-  }
-  if (controlNumber < 0 || controlNumber > 127) {
-    throw new Error("Control number must be between 0 and 127.");
-  }
-  const statusByte = 0xb0 | (channel - 1);
-  return [statusByte, controlNumber, value];
-}
-
-function sendCC(channel: number, controlNumber: number, value: number) {
-  const message = createCCMessage(channel, controlNumber, value);
-  sendMidi(message);
-}
+const tile = (active: boolean) => `
+  rounded-2xl transition-all duration-200 cursor-pointer select-none active:scale-95
+  ${
+    active
+      ? "bg-amber-glow text-organ-bg shadow-[0_0_20px_rgba(212,162,78,0.5)] border-2 border-amber-bright/50"
+      : "bg-organ-surface-light text-organ-text-muted border-2 border-organ-border hover:border-organ-text-muted/40 hover:text-organ-text/80 active:bg-organ-surface"
+  }`;
 
 function App() {
-  const [volume, setVolume] = useState<number>(50);
-  const [volumeLoading, setVolumeLoading] = useState<boolean>(true);
-  const [activePresets, setActivePresets] = useState<Record<number, Set<number>>>({});
+  const [state, setState] = useState<State | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchVolume = async () => {
-      try {
-        const response = await fetch("http://192.168.1.21:8080/volume");
-        if (!response.ok) {
-          throw new Error(`Failed to fetch volume: ${response.statusText}`);
-        }
-        const data = await response.json();
-        if (typeof data.volume === "number") {
-          setVolume(data.volume);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setVolumeLoading(false);
-      }
-    };
-    fetchVolume();
+  const run = useCallback(async (path: string, body?: object) => {
+    try {
+      setState(await api(path, body));
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }, []);
 
-  const adjustVolume = async (direction: "up" | "down") => {
-    try {
-      const response = await fetch("http://192.168.1.21:8080/volume", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ direction }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (typeof data.volume === "number") {
-          setVolume(data.volume);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const { config, loading, error } = useConfig();
-
   useEffect(() => {
-    if (!config) return;
-    const initial: Record<number, Set<number>> = {};
-    for (const preset_default of config.preset_defaults) {
-      const preset = config.presets[preset_default.preset_name];
-      if (preset) {
-        if (!initial[preset_default.midi_channel]) {
-          initial[preset_default.midi_channel] = new Set();
-        }
-        initial[preset_default.midi_channel].add(preset.midi_identifier);
-      }
-    }
-    setActivePresets(initial);
-  }, [config]);
+    run("state");
+    const timer = setInterval(() => run("state"), 3000);
+    return () => clearInterval(timer);
+  }, [run]);
 
-  if (loading) {
+  if (!state) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-organ-text-muted text-lg">Loading...</p>
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-red-400 text-lg">Error: {error}</p>
+      <div className="fixed inset-0 bg-organ-bg flex items-center justify-center">
+        <p className="text-organ-text-muted text-lg">{error ?? "Loading..."}</p>
       </div>
     );
   }
 
-  const togglePreset = (channel: number, ccId: number) => {
-    const channelActive = activePresets[channel] ?? new Set();
-    const isActive = channelActive.has(ccId);
-
-    if (isActive) {
-      sendCC(channel, ccId, 0);
-      const next = new Set(channelActive);
-      next.delete(ccId);
-      setActivePresets({ ...activePresets, [channel]: next });
-    } else {
-      sendCC(channel, ccId, 127);
-      const next = new Set(channelActive);
-      next.add(ccId);
-      setActivePresets({ ...activePresets, [channel]: next });
-    }
-  };
+  const heading = "text-sm font-semibold uppercase tracking-widest text-organ-text-muted mb-3";
 
   return (
-    <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight text-organ-text">
-          OrganSynth
-        </h1>
+    <div className="fixed inset-0 bg-organ-bg flex flex-col gap-5 p-4 overflow-y-auto">
+      {/* Organ / piano */}
+      <div className="grid grid-cols-2 gap-3 w-full max-w-lg mx-auto">
+        {(["organ", "piano"] as Mode[]).map((mode) => (
+          <button
+            key={mode}
+            onClick={() => {
+              setState({ ...state, mode });
+              run("mode", { mode });
+            }}
+            className={`${tile(state.mode === mode)} py-4 text-xl font-bold tracking-wide uppercase`}
+          >
+            {mode}
+          </button>
+        ))}
+      </div>
 
-        {/* Volume control */}
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-organ-text-muted">Volume</span>
-          <button
-            onClick={() => adjustVolume("down")}
-            disabled={volumeLoading || volume <= 0}
-            className="w-9 h-9 rounded-lg bg-organ-surface border border-organ-border
-                       text-organ-text font-semibold text-lg
-                       hover:bg-organ-surface-light hover:border-amber-glow/40
-                       disabled:opacity-30 disabled:cursor-not-allowed
-                       transition-all duration-150 cursor-pointer"
+      {state.mode === "organ" ? (
+        <div className="flex-1 flex flex-col min-h-0 w-full max-w-lg mx-auto">
+          <select
+            value={state.organ}
+            onChange={(e) => {
+              setState({ ...state, organ: e.target.value });
+              run("organ", { organ: e.target.value });
+            }}
+            className="mb-5 w-full rounded-xl bg-organ-surface border-2 border-organ-border px-4 py-3
+                       text-lg text-organ-text font-medium appearance-none cursor-pointer"
           >
-            -
-          </button>
-          <span className="text-sm text-organ-text tabular-nums w-10 text-center font-medium">
-            {volume}%
-          </span>
-          <button
-            onClick={() => adjustVolume("up")}
-            disabled={volumeLoading || volume >= 100}
-            className="w-9 h-9 rounded-lg bg-organ-surface border border-organ-border
-                       text-organ-text font-semibold text-lg
-                       hover:bg-organ-surface-light hover:border-amber-glow/40
-                       disabled:opacity-30 disabled:cursor-not-allowed
-                       transition-all duration-150 cursor-pointer"
-          >
-            +
-          </button>
+            {state.organs.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+
+          <h2 className={heading}>PRESETS</h2>
+          <div className="grid grid-cols-2 gap-4 flex-1 min-h-[18rem]">
+            {state.registrations.map((r, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  setState({ ...state, registration: i });
+                  run("registration", { registration: i });
+                }}
+                className={`${tile(state.registration === i)} flex flex-col items-center justify-center gap-1 px-2`}
+              >
+                <span className="text-3xl font-bold">{i + 1}</span>
+                <span className="text-xs font-medium opacity-70 leading-tight text-center line-clamp-2">
+                  {r.manual.join(" · ")}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col min-h-0 w-full max-w-lg mx-auto">
+          <h2 className={heading}>GRAND PIANO</h2>
+          <div className="grid grid-cols-2 gap-4 flex-1 min-h-[18rem]">
+            {state.pianoPresets.map((preset) => (
+              <button
+                key={preset}
+                onClick={() => {
+                  setState({ ...state, pianoPreset: preset });
+                  run("piano-preset", { preset });
+                }}
+                className={`${tile(state.pianoPreset === preset)} text-lg font-bold capitalize`}
+              >
+                {preset.replace("-", " ")}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Output / volume modes */}
+      <div className="flex flex-col w-full max-w-lg mx-auto">
+        <h2 className={heading}>OUTPUT</h2>
+        <div className="grid grid-cols-2 gap-4">
+          {OUTPUT_MODES.map(({ label, volume }) => (
+            <button
+              key={label}
+              onClick={() => {
+                setState({ ...state, volume });
+                run("volume", { volume });
+              }}
+              className={`${tile(state.volume === volume)} py-5 flex flex-col items-center justify-center gap-1`}
+            >
+              <span className="text-xl font-bold tracking-wide">{label}</span>
+              <span className="text-sm font-medium opacity-70">{volume}%</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Channel sections */}
-      {config?.preset_defaults.map((preset_default: any) => {
-        const channelPresets = Object.values(config.presets).filter(
-          (preset: any) => preset.channels.includes(preset_default.midi_channel)
-        );
-
-        return (
-          <div
-            key={preset_default.midi_channel}
-            className="mb-6 rounded-xl bg-organ-surface border border-organ-border p-5"
-          >
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-organ-text-muted mb-4">
-              {preset_default.channel_name}
-            </h2>
-            <div className="flex flex-wrap gap-2.5">
-              {channelPresets.map((preset: any) => {
-                const isActive = activePresets[preset_default.midi_channel]?.has(
-                  preset.midi_identifier
-                );
-                return (
-                  <button
-                    key={preset.midi_identifier}
-                    onClick={() =>
-                      togglePreset(
-                        preset_default.midi_channel,
-                        preset.midi_identifier
-                      )
-                    }
-                    className={`
-                      px-5 py-3 rounded-lg text-base font-medium
-                      transition-all duration-200 cursor-pointer
-                      ${
-                        isActive
-                          ? "bg-amber-glow text-organ-bg shadow-[0_0_12px_rgba(212,162,78,0.35)] border border-amber-bright/50"
-                          : "bg-organ-surface-light text-organ-text-muted border border-organ-border hover:border-organ-text-muted/40 hover:text-organ-text/80"
-                      }
-                    `}
-                  >
-                    {preset.display_name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+      {/* Status */}
+      <div className="flex justify-center gap-4 text-xs text-organ-text-muted">
+        <span>Piano {state.devices.piano ? "●" : "○"}</span>
+        <span>Pedalboard {state.devices.pedalboard ? "●" : "○"}</span>
+        <span className={state.overloaded ? "text-red-400" : ""}>CPU {Math.round(state.cpu * 100)}%</span>
+        {error && <span className="text-red-400">{error}</span>}
+      </div>
     </div>
   );
 }

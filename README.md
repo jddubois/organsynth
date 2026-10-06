@@ -1,14 +1,14 @@
 # organsynth
 
-A lightweight, synthesized pipe organ emulator.
+A pipe organ and piano for a Raspberry Pi, played from a digital piano and a MIDI pedalboard.
 
 ## Architecture
 
-There are a few components to this repo:
+* Synth- a Node service built on [supersynth](https://www.npmjs.com/package/@supersynth/core). It
+  plays the piano keyboard and pedalboard through a choice of sampled organs or a grand piano,
+  keeps the digital piano's own sound switched off (MIDI Local Control Off), and serves the web app.
 
+* StopManager- a react app for a phone on the same network: switch between organ and piano, pick
+  an organ, choose one of six registrations and set the output level.
 
-* Synth- the rust organ emulator, which takes input from MIDI and produces sound via JACK.
-
-* HTTPMIDI- a simple typescript server that sets up a virtual MIDI port, takes HTTP requests and converts them to MIDI events.
-
-* StopManager- a simple react app that allows toggling organ stops and sending HTTP requests. This is designed to be run from a remote machine (ideally on the same network).
+Open `http://patchbox.local:8080` (or `:5173`) on the phone.

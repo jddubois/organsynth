@@ -1,72 +1,254 @@
-import { Organ } from 'supersynth';
-import midi from 'midi';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Synth, ORGANS, type Instrument, type Organ, type OrganDefinition } from '@supersynth/core';
+import { Devices, type Role } from './devices.ts';
+import { REGISTRATIONS, resolveRegistration } from './presets.ts';
 
-const PRESETS = {
-  principal:          { cc: 21, channels: [1], displayName: 'Default'   },
-  grand_jeu:          { cc: 22, channels: [1], displayName: 'Pleno'     },
-  cornet:             { cc: 30, channels: [1], displayName: 'Cornet'    },
-  mixture:            { cc: 23, channels: [1], displayName: 'Mixture'   },
-  flute:              { cc: 24, channels: [1], displayName: 'Flute'     },
-  trumpet:            { cc: 27, channels: [1], displayName: 'Trumpet'   },
-  plein_jeu:          { cc: 28, channels: [1], displayName: 'Plein Jeu' },
-  pedalboard_default: { cc: 20, channels: [2], displayName: 'Default'   },
-  pedalboard_reed:    { cc: 29, channels: [2], displayName: 'Reed'      },
-  pedalboard_flute:   { cc: 25, channels: [2], displayName: 'Flute'     },
-  pedalboard_trumpet: { cc: 26, channels: [2], displayName: 'Trumpet'   },
-};
+const execFileP = promisify(execFile);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const UI_DIR = path.resolve(HERE, '../../stopmanager/dist');
+// 5173 is where the phone's bookmark points (the old Vite dev server).
+const PORTS = (process.env.PORTS ?? '8080,5173').split(',').map(Number);
+const STATE_FILE = process.env.STATE_FILE ?? path.join(homedir(), '.organsynth.json');
+// The Pi's JACK server owns the DAC; elsewhere use the default device.
+const BACKEND = (process.env.AUDIO_BACKEND ?? (process.platform === 'linux' ? 'jack' : 'auto')) as 'jack' | 'auto';
+// ALSA mixer for the HEADPHONE / SPEAKER buttons (the DAC's hardware volume).
+const VOLUME_CARD = process.env.VOLUME_CARD ?? 'DAC';
+const VOLUME_CONTROL = process.env.VOLUME_CONTROL ?? 'Digital';
 
-const DEFAULTS = [
-  { midi_channel: 1, preset_name: 'principal'          },
-  { midi_channel: 2, preset_name: 'pedalboard_default' },
-];
+type Mode = 'organ' | 'piano';
+interface State {
+  mode: Mode;
+  organ: string;
+  /** Registration index, 0–5. */
+  registration: number;
+  pianoPreset: string;
+}
 
-// Build CC→preset lookup per channel
-const ccMap: Record<number, Record<number, string>> = {};
-for (const [name, { cc, channels }] of Object.entries(PRESETS)) {
-  for (const ch of channels) {
-    ccMap[ch] ??= {};
-    ccMap[ch][cc] = name;
+const DEFAULTS: State = { mode: 'organ', organ: 'friesach', registration: 0, pianoPreset: 'default' };
+const state: State = { ...DEFAULTS, ...readState() };
+
+function readState(): Partial<State> {
+  try {
+    return JSON.parse(readFileSync(STATE_FILE, 'utf8'));
+  } catch {
+    return {};
   }
 }
 
-// One Organ instance per MIDI channel
-const organs: Record<number, Organ> = {
-  1: new Organ({ backend: 'jack' }),
-  2: new Organ({ backend: 'jack' }),
-};
-
-// Activate default presets
-for (const { midi_channel, preset_name } of DEFAULTS) {
-  organs[midi_channel].activatePreset(preset_name);
+function saveState() {
+  try {
+    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+  } catch (e) {
+    console.error('Could not save state:', (e as Error).message);
+  }
 }
 
-await organs[1].start();
-await organs[2].start();
-console.log('OrganSynth running');
+// ── Synth ────────────────────────────────────────────────────────────────────
 
-// MIDI input — virtual ALSA port bridged to JACK via a2jmidid
-const input = new midi.Input();
-input.openVirtualPort('organsynth');
+const synth = new Synth({ backend: BACKEND, overloadGuard: true, reverb: false });
+synth.on('error', (e: Error) => console.error('synth error:', e.message));
 
-input.on('message', (_delta, [status, byte1, byte2]) => {
-  const type = status & 0xF0;
-  const channel = (status & 0x0F) + 1;
-  const organ = organs[channel];
-  if (!organ) return;
-
-  if (type === 0x90 && byte2 > 0) {
-    organ.noteOn(byte1, byte2);
-  } else if (type === 0x80 || (type === 0x90 && byte2 === 0)) {
-    organ.noteOff(byte1);
-  } else if (type === 0xB0) {
-    const preset = ccMap[channel]?.[byte1];
-    if (preset) byte2 > 63 ? organ.activatePreset(preset) : organ.deactivatePreset(preset);
+// Only organs whose packages are installed can be picked.
+const organs: { id: string; name: string }[] = [];
+for (const [id, def] of Object.entries(ORGANS) as [string, OrganDefinition][]) {
+  try {
+    await synth.load(def);
+    organs.push({ id, name: def.name });
+  } catch {
+    // package not installed
   }
+}
+if (!organs.some((o) => o.id === state.organ)) state.organ = organs[0].id;
+
+const piano: Instrument = synth.add('grand-piano');
+if (!(state.pianoPreset in piano.presets())) state.pianoPreset = 'default';
+piano.preset(state.pianoPreset);
+
+let organ: Organ = loadOrgan(state.organ);
+
+function loadOrgan(id: string): Organ {
+  const def = ORGANS[id as keyof typeof ORGANS] as OrganDefinition;
+  const started = Date.now();
+  const added = synth.add(def, { preset: resolveRegistration(def, state.registration) });
+  console.log(`Organ ${id} ready to play in ${Date.now() - started} ms`);
+  added.ready.then(
+    () => console.log(`Organ ${id}: every stop loaded in ${Date.now() - started} ms`),
+    (e: Error) => console.error(`Organ ${id}: ${e.message}`),
+  );
+  return added;
+}
+
+function applyRoom() {
+  // Each instrument's own room: the organ recordings already carry their church.
+  const room = state.mode === 'organ' ? (organ.definition.reverb ?? 'church') : (piano.definition.reverb ?? 'hall');
+  synth.set({ reverb: room });
+}
+
+applyRoom();
+await synth.start();
+console.log(`Audio running (${BACKEND}) at ${synth.sampleRate} Hz on ${synth.threads} threads`);
+
+// ── MIDI ─────────────────────────────────────────────────────────────────────
+
+function handleMidi(role: Role, [status, data1, data2]: number[]) {
+  const type = status & 0xf0;
+  const target = state.mode === 'piano' ? (role === 'piano' ? piano : null) : role === 'piano' ? organ.great : organ.pedal;
+  if (!target) return; // the pedalboard is silent in piano mode
+
+  if (type === 0x90 && data2 > 0) target.noteOn(data1, data2);
+  else if (type === 0x80 || type === 0x90) target.noteOff(data1);
+  else if (type === 0xb0 && target === piano && data1 < 120) {
+    if (data1 === 64) piano.sustain(data2 >= 64);
+    else piano.controlChange(data1, data2);
+  }
+}
+
+const devices = new Devices(handleMidi, (role) => {
+  // Release whatever the unplugged device was holding.
+  if (role === 'piano') {
+    piano.allNotesOff();
+    piano.sustain(false);
+    organ.great.allNotesOff();
+  } else organ.pedal.allNotesOff();
 });
+devices.start();
 
-process.on('SIGINT', () => {
-  input.closePort();
-  organs[1].stop();
-  organs[2].stop();
+// ── Actions ──────────────────────────────────────────────────────────────────
+
+function setMode(mode: Mode) {
+  if (mode === state.mode) return;
+  synth.allNotesOff();
+  piano.sustain(false);
+  state.mode = mode;
+  applyRoom();
+}
+
+function setOrgan(id: string) {
+  if (!organs.some((o) => o.id === id)) throw new HttpError(400, `Unknown organ ${id}`);
+  if (id === organ.definition.id) return;
+  synth.remove(organ);
+  state.organ = id;
+  organ = loadOrgan(id);
+  applyRoom();
+}
+
+function setRegistration(index: number) {
+  if (!(index in REGISTRATIONS)) throw new HttpError(400, `Unknown preset ${index + 1}`);
+  state.registration = index;
+  organ.preset(resolveRegistration(organ.definition, index));
+}
+
+function setPianoPreset(name: string) {
+  if (!(name in piano.presets())) throw new HttpError(400, `Unknown piano preset ${name}`);
+  state.pianoPreset = name;
+  piano.preset(name);
+}
+
+async function getVolume(): Promise<number | null> {
+  try {
+    const { stdout } = await execFileP('amixer', ['-M', '-c', VOLUME_CARD, 'sget', VOLUME_CONTROL]);
+    const match = stdout.match(/\[(\d+)%\]/);
+    return match ? Number(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function setVolume(percent: number) {
+  if (!Number.isFinite(percent)) throw new HttpError(400, 'volume must be a number 0–100');
+  const value = Math.max(0, Math.min(100, Math.round(percent)));
+  await execFileP('amixer', ['-M', '-c', VOLUME_CARD, 'sset', VOLUME_CONTROL, `${value}%`]);
+}
+
+async function snapshot() {
+  const def = organ.definition;
+  return {
+    mode: state.mode,
+    organ: state.organ,
+    organs,
+    registration: state.registration,
+    registrations: REGISTRATIONS.map((r, i) => {
+      const preset = resolveRegistration(def, i);
+      return { name: r.name, manual: [...preset.great!, ...preset.swell!, ...preset.positive!], pedal: preset.pedal };
+    }),
+    pianoPreset: state.pianoPreset,
+    pianoPresets: Object.keys(piano.presets()),
+    volume: await getVolume(),
+    devices: devices.connected(),
+    cpu: synth.cpuLoad,
+    voices: synth.activeVoices,
+    overloaded: synth.guardActive,
+  };
+}
+
+// ── HTTP ─────────────────────────────────────────────────────────────────────
+
+class HttpError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+  }
+}
+
+const ACTIONS: Record<string, (body: any) => void | Promise<void>> = {
+  '/api/mode': (b) => setMode(b.mode === 'piano' ? 'piano' : 'organ'),
+  '/api/organ': (b) => setOrgan(String(b.organ)),
+  '/api/registration': (b) => setRegistration(Number(b.registration)),
+  '/api/piano-preset': (b) => setPianoPreset(String(b.preset)),
+  '/api/volume': (b) => setVolume(Number(b.volume)),
+};
+
+const MIME: Record<string, string> = {
+  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json',
+};
+
+async function handle(req: IncomingMessage, res: ServerResponse) {
+  const url = new URL(req.url ?? '/', 'http://localhost');
+  if (url.pathname.startsWith('/api/')) {
+    if (req.method === 'POST') {
+      const action = ACTIONS[url.pathname];
+      if (!action) throw new HttpError(404, 'Not found');
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      await action(body ? JSON.parse(body) : {});
+      saveState();
+    } else if (url.pathname !== '/api/state') throw new HttpError(404, 'Not found');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(await snapshot()));
+    return;
+  }
+
+  // The built web app; unknown paths get index.html.
+  let file = path.join(UI_DIR, path.normalize(url.pathname).replace(/^(\.\.[/\\])+/, ''));
+  if (!file.startsWith(UI_DIR) || !existsSync(file) || url.pathname === '/') file = path.join(UI_DIR, 'index.html');
+  if (!existsSync(file)) throw new HttpError(503, 'Web app not built: run npm run build in stopmanager/');
+  res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] ?? 'application/octet-stream' });
+  res.end(readFileSync(file));
+}
+
+function onRequest(req: IncomingMessage, res: ServerResponse) {
+  handle(req, res).catch((e) => {
+    const status = e instanceof HttpError ? e.status : 500;
+    if (status === 500) console.error(e);
+    res.writeHead(status, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: e.message }));
+  });
+}
+const servers = PORTS.map((port) =>
+  createServer(onRequest).listen(port, '0.0.0.0', () => console.log(`Web app on http://0.0.0.0:${port}`)),
+);
+
+function shutdown() {
+  devices.close();
+  servers.forEach((s) => s.close());
+  synth.close();
   process.exit(0);
-});
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
