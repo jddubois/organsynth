@@ -23,9 +23,10 @@ One Node process, run by pm2 (`ecosystem.config.js`, app `organsynth`):
 - `src/presets.ts` — the six numbered registrations (originally GrandOrgue General combinations
   1–6), described by stop family and footage and resolved against whichever organ is selected.
 
-Routing is by device, not channel: organ mode sends the piano to `organ.great` and the pedalboard
-to `organ.pedal`; piano mode sends the piano to the grand piano (CC 64 = sustain) and ignores the
-pedalboard.
+Each device has its own input, filtered to its channel (piano 1, pedalboard 2), because
+amidiminder connects every hardware port to both inputs. Organ mode sends the piano to
+`organ.great` and the pedalboard to `organ.pedal`; piano mode sends the piano to the grand piano
+(CC 64 = sustain) and ignores the pedalboard.
 
 HTTP API: `GET /api/state`; `POST /api/mode {mode}`, `/api/organ {organ}`,
 `/api/registration {registration}`, `/api/piano-preset {preset}`, `/api/volume {volume}` (ALSA
@@ -50,5 +51,5 @@ pm2 start ecosystem.config.js && pm2 save # on the Pi
 
 - `patch@patchbox.local`, repo at `/home/patch/organsynth`, Patchbox OS (Bookworm, Pi 5, 4 GB).
 - JACK runs as a system service (`/etc/jackdrc`: hw:DAC, 48 kHz, 128 frames); supersynth connects
-  to it. amidiminder auto-connects hardware and app MIDI ports but skips RtMidi clients.
+  to it. amidiminder (`/etc/amidiminder.rules`) auto-connects every hardware and app MIDI port.
 - Env overrides: `AUDIO_BACKEND`, `PORTS`, `STATE_FILE`, `VOLUME_CARD`, `VOLUME_CONTROL`.

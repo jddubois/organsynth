@@ -7,6 +7,13 @@ const PATTERNS: Record<Role, RegExp> = {
   pedalboard: /teensy/i,
 };
 
+// The MIDI channel (0-based) each device plays on. amidiminder connects every hardware port to
+// every app port, so each input also hears the other device; the channel tells them apart.
+const CHANNELS: Record<Role, number> = {
+  piano: 0,
+  pedalboard: 1,
+};
+
 const POLL_MS = 1000;
 const LOCAL_CONTROL = 122;
 
@@ -73,7 +80,9 @@ export class Devices {
 
   private openInput(role: Role, index: number, name: string) {
     const input = new midi.Input();
-    input.on('message', (_delta, message) => this.onMessage(role, message));
+    input.on('message', (_delta, message) => {
+      if ((message[0] & 0x0f) === CHANNELS[role] && message[0] < 0xf0) this.onMessage(role, message);
+    });
     input.openPort(index);
     this.inputs.set(role, { input, name });
     console.log(`Connected ${role}: ${name}`);
