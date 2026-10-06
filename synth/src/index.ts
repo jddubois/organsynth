@@ -121,8 +121,15 @@ setInterval(() => {
 
 // ── MIDI ─────────────────────────────────────────────────────────────────────
 
+// Each controller (pedal) a device sends is logged once, to check pedals are wired up.
+const controllersSeen = new Set<string>();
+
 function handleMidi(role: Role, [status, data1, data2]: number[]) {
   const type = status & 0xf0;
+  if (type === 0xb0 && data1 !== 122 && !controllersSeen.has(`${role}:${data1}`)) {
+    controllersSeen.add(`${role}:${data1}`);
+    console.log(`${role} sent CC ${data1} (value ${data2})`);
+  }
   const target = state.mode === 'piano' ? (role === 'piano' ? piano : null) : role === 'piano' ? organ.great : organ.pedal;
   if (!target) return; // the pedalboard is silent in piano mode
 

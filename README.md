@@ -14,7 +14,7 @@ Open **http://patchbox.local:5173** (or `:8080`) on a phone on the same network.
 - **Organ / Piano** switches what the keyboard plays. In piano mode the sustain pedal works and
   the pedalboard is silent.
 - **Organ**: step through the organs with ‹ ›, or pick one from the list.
-- **Presets 1–6** are registrations (the stops drawn), each shown with its manual stops. They
+- **Presets**: six registrations (the stops drawn); each button lists its manual stops. They
   come from the old GrandOrgue setup and are matched to whichever organ is selected:
 
   | # | Manual | Pedal |

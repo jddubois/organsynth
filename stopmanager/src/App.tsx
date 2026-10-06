@@ -111,12 +111,20 @@ function App() {
                 {step < 0 ? "‹" : "›"}
               </button>
             ))}
-            <div className="relative flex-1 min-w-0">
+            {/* The full name, wrapping if needed, with the native picker invisibly on top. */}
+            <div className="relative flex-1 min-w-0 rounded-2xl bg-organ-surface border-2 border-organ-border
+                            flex items-center pl-4 pr-9 py-2 min-h-14">
+              <span className="text-lg font-medium leading-tight text-organ-text">
+                {state.organs.find((o) => o.id === state.organ)?.name}
+              </span>
+              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-organ-text-muted">
+                ▾
+              </span>
               <select
                 value={state.organ}
                 onChange={(e) => selectOrgan(e.target.value)}
-                className="w-full h-full rounded-2xl bg-organ-surface border-2 border-organ-border pl-4 pr-10 py-3
-                           text-lg text-organ-text font-medium appearance-none cursor-pointer truncate"
+                aria-label="Organ"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               >
                 {state.organs.map((o) => (
                   <option key={o.id} value={o.id}>
@@ -124,14 +132,11 @@ function App() {
                   </option>
                 ))}
               </select>
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-organ-text-muted">
-                ▾
-              </span>
             </div>
           </div>
 
           <h2 className={heading}>PRESETS</h2>
-          <div className="grid grid-cols-2 gap-4 flex-1 min-h-[18rem]">
+          <div className="grid grid-cols-2 gap-3">
             {state.registrations.map((r, i) => (
               <button
                 key={i}
@@ -139,12 +144,12 @@ function App() {
                   setState({ ...state, registration: i });
                   run("registration", { registration: i });
                 }}
-                className={`${tile(state.registration === i)} flex flex-col items-center justify-center gap-1 px-2`}
+                className={`${tile(state.registration === i)} flex flex-col items-center justify-center gap-1.5 px-2 py-3
+                            text-base font-semibold leading-tight text-center`}
               >
-                <span className="text-3xl font-bold">{i + 1}</span>
-                <span className="text-xs font-medium opacity-70 leading-tight text-center line-clamp-2">
-                  {r.manual.join(" · ")}
-                </span>
+                {r.manual.map((stop) => (
+                  <span key={stop}>{stop}</span>
+                ))}
               </button>
             ))}
           </div>
