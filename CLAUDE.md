@@ -31,7 +31,9 @@ One Node process, run by pm2 (`ecosystem.config.js`, app `organsynth`):
 Each device has its own input, filtered to its channel (piano 1, pedalboard 2), because
 amidiminder connects every hardware port to both inputs. Organ mode sends the piano to
 `organ.great` and the pedalboard to `organ.pedal`; piano mode sends the piano to the grand piano
-(CC 64 = sustain) and ignores the pedalboard.
+(CC 64 = sustain; other controllers, e.g. CC 66 sostenuto and CC 67 soft, are forwarded) and
+ignores the pedalboard. The Donner's three pedals are on/off (0/127) and are sent on channels 1, 2
+and 3 at once, so the pedalboard input also sees them on channel 2 (harmless: only notes are used there).
 
 HTTP API: `GET /api/state`; `POST /api/mode {mode}`, `/api/organ {organ}`,
 `/api/registration {registration}`, `/api/piano-preset {preset}`. Each returns the new state.
