@@ -106,12 +106,18 @@ applyRoom();
 await synth.start();
 console.log(`Audio running (${BACKEND}) at ${synth.sampleRate} Hz on ${synth.threads} threads`);
 
-// If the audio output dies (e.g. JACK restarts), exit so pm2 starts a fresh synth.
+// If the audio output dies (e.g. JACK restarted), the engine clock stops; exit so pm2 starts a
+// fresh synth. `isRunning` alone doesn't notice a JACK shutdown.
+let lastClock = -1;
 setInterval(() => {
-  if (synth.isRunning && !synth.engineError) return;
+  const clock = synth.currentTime;
+  if (clock !== lastClock && synth.isRunning && !synth.engineError) {
+    lastClock = clock;
+    return;
+  }
   console.error(`Audio output stopped${synth.engineError ? `: ${synth.engineError}` : ''}; restarting`);
   process.exit(1);
-}, 2000);
+}, 3000);
 
 // ── MIDI ─────────────────────────────────────────────────────────────────────
 

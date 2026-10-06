@@ -8,7 +8,10 @@ module.exports = {
       cwd: "/home/patch/organsynth/synth",
       interpreter: "none",
       // All four cores render audio (GrandOrgue no longer competes for them).
-      env: { THREADS: "4" },
+      // JACK_NO_START_SERVER: never let libjack start its own jackd when the system JACK is
+      // down (e.g. at boot or while it restarts); fail instead and let pm2 retry.
+      env: { THREADS: "4", JACK_NO_START_SERVER: "1" },
+      restart_delay: 2000,
     },
   ],
 };
