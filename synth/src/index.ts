@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Synth, ORGANS, type Instrument, type Organ, type OrganDefinition } from '@supersynth/core';
 import { Devices, type Role } from './devices.ts';
-import { REGISTRATIONS, resolveRegistration } from './presets.ts';
+import { REGISTRATIONS, manualStops, resolveRegistration } from './presets.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const UI_DIR = path.resolve(HERE, '../../stopmanager/dist');
@@ -191,12 +191,7 @@ async function snapshot() {
     registration: state.registration,
     registrations: REGISTRATIONS.map((r, i) => {
       const preset = resolveRegistration(def, i);
-      // Stops of the coupled manuals are marked, since an organ can have the same stop on both.
-      const manual = [
-        ...preset.great!,
-        ...preset.swell!.map((stop) => `${stop} (Sw)`),
-        ...preset.positive!.map((stop) => `${stop} (Pos)`),
-      ];
+      const manual = manualStops(preset);
       return { name: r.name, manual, pedal: preset.pedal };
     }),
     pianoPreset: state.pianoPreset,

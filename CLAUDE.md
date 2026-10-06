@@ -24,7 +24,8 @@ One Node process, run by pm2 (`ecosystem.config.js`, app `organsynth`):
   piano every second so its internal sound stays silent (the piano forgets it when powered off).
 - `src/presets.ts` — the six numbered registrations (originally GrandOrgue General combinations
   1–6), described by stop family and footage and resolved against whichever organ is selected.
-  Each button lists its manual stops (no numbers; equal-size buttons, text shrinks to fit via
+  Each button lists the stops the Donner plays, from every manual, without saying which (a
+  name drawn on two manuals shows as "Flöte 4' ×2"; no numbers; equal-size buttons, text shrinks to fit via
   `stopmanager/src/FitText.tsx`). Every pedal registration includes an 8' principal: the piano's small speakers barely play the
   16'/8' flute fundamentals.
 - `scripts/local-control.ts` — `npm run local-control -- off|on` from any computer the piano is on.

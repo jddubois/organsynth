@@ -163,3 +163,11 @@ export function resolveRegistration(organ: OrganDefinition, index: number): Orga
     couple,
   };
 }
+
+/** The stops a preset draws for the Donner, for display. One keyboard plays every manual, so the
+ *  manuals aren't told apart; a name drawn on two manuals is listed once, as "Flöte 4' ×2". */
+export function manualStops(preset: OrganPreset): string[] {
+  const counts = new Map<string, number>();
+  for (const name of [...preset.great!, ...preset.swell!, ...preset.positive!]) counts.set(name, (counts.get(name) ?? 0) + 1);
+  return [...counts].map(([name, n]) => (n > 1 ? `${name} ×${n}` : name));
+}
