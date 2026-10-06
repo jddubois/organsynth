@@ -150,6 +150,10 @@ function setPianoPreset(name: string) {
   piano.preset(name);
 }
 
+// Read the mixer once: touching the DAC's mixer while audio plays causes xruns, so the
+// state reports the last value instead of asking amixer on every poll.
+let volume = await getVolume();
+
 async function getVolume(): Promise<number | null> {
   try {
     const { stdout } = await execFileP('amixer', ['-M', '-c', VOLUME_CARD, 'sget', VOLUME_CONTROL]);
@@ -164,6 +168,7 @@ async function setVolume(percent: number) {
   if (!Number.isFinite(percent)) throw new HttpError(400, 'volume must be a number 0–100');
   const value = Math.max(0, Math.min(100, Math.round(percent)));
   await execFileP('amixer', ['-M', '-c', VOLUME_CARD, 'sset', VOLUME_CONTROL, `${value}%`]);
+  volume = value;
 }
 
 async function snapshot() {
@@ -179,7 +184,7 @@ async function snapshot() {
     }),
     pianoPreset: state.pianoPreset,
     pianoPresets: Object.keys(piano.presets()),
-    volume: await getVolume(),
+    volume,
     devices: devices.connected(),
     cpu: synth.cpuLoad,
     voices: synth.activeVoices,
