@@ -191,7 +191,13 @@ async function snapshot() {
     registration: state.registration,
     registrations: REGISTRATIONS.map((r, i) => {
       const preset = resolveRegistration(def, i);
-      return { name: r.name, manual: [...preset.great!, ...preset.swell!, ...preset.positive!], pedal: preset.pedal };
+      // Stops of the coupled manuals are marked, since an organ can have the same stop on both.
+      const manual = [
+        ...preset.great!,
+        ...preset.swell!.map((stop) => `${stop} (Sw)`),
+        ...preset.positive!.map((stop) => `${stop} (Pos)`),
+      ];
+      return { name: r.name, manual, pedal: preset.pedal };
     }),
     pianoPreset: state.pianoPreset,
     pianoPresets: Object.keys(piano.presets()),

@@ -26,8 +26,8 @@ export function FitText({ lines, max = 17, min = 9 }: { lines: string[]; max?: n
       ref={ref}
       className="w-full h-full flex flex-col items-center justify-center gap-[0.3em] overflow-hidden leading-tight text-center"
     >
-      {lines.map((line) => (
-        <span key={line}>{line}</span>
+      {lines.map((line, i) => (
+        <span key={i}>{line}</span>
       ))}
     </div>
   );
