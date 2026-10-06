@@ -49,6 +49,17 @@ function Chevron({ direction, className = "" }: { direction: "left" | "right" | 
   );
 }
 
+/** A right arrow centered on the text beside it. */
+function Arrow({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={`block ${className}`} fill="none" stroke="currentColor"
+         strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <line x1="4" y1="12" x2="19" y2="12" />
+      <polyline points="13 6 19 12 13 18" />
+    </svg>
+  );
+}
+
 const tile = (active: boolean) => `
   rounded-2xl transition-all duration-200 cursor-pointer select-none active:scale-95
   ${
@@ -204,9 +215,16 @@ function App() {
               setState({ ...state, pedalCoupled: on });
               run("pedal-coupler", { on });
             }}
-            className={`${tile(state.pedalCoupled)} flex-1 h-11 text-base font-bold disabled:opacity-60`}
+            className={`${tile(state.pedalCoupled)} flex-1 h-11 text-base font-bold disabled:opacity-60
+                        flex items-center justify-center gap-2`}
           >
-            {state.hasPedal ? "Manual → Pedal" : "Plays the manual"}
+            {state.hasPedal ? (
+              <>
+                Manual <Arrow className="w-5 h-5" /> Pedal
+              </>
+            ) : (
+              "Plays the manual"
+            )}
           </button>
         </div>
       )}
