@@ -56,13 +56,6 @@ export interface Registration {
   preset: OrganPreset;
 }
 
-/** Footage from a stop name: "Octave 4'" → 4, "Nasat 1 1/3'" → 1.33, "Mixture V" → 0. */
-export function footage(name: string): number {
-  const m = name.match(/(\d+)(?:\s+(\d+)\/(\d+))?\s*'/);
-  if (!m) return 0;
-  return Number(m[1]) + (m[2] ? Number(m[2]) / Number(m[3]) : 0);
-}
-
 /** The six registrations of an organ, adapted to be played from one keyboard. */
 export function registrations(organ: OrganDefinition): Registration[] {
   const choices = CHOICES[organ.id] ?? Object.keys(organ.presets).slice(0, 6);
@@ -101,9 +94,9 @@ function oneKeyboard(organ: OrganDefinition, preset: OrganPreset, soft: boolean)
   delete couple.pedal;
 
   const pedalStops = organ.stops.filter((s) => s.division === 'pedal');
+  const eights = pedalStops.filter((s) => s.feet === 8);
   let pedal = [...(preset.pedal ?? [])];
-  if (pedalStops.length && !pedal.some((name) => Math.abs(footage(name) - 8) < 0.01)) {
-    const eights = pedalStops.filter((s) => Math.abs(footage(s.name) - 8) < 0.01);
+  if (pedalStops.length && !pedal.some((name) => eights.some((s) => s.name === name))) {
     // Soft (flute) registrations only ever get a flute: a principal under them is out of character.
     const order = soft ? ['flute'] : ['principal', 'flute', 'string', 'reed'];
     const eight = order.map((family) => eights.find((s) => s.family === family)).find(Boolean);

@@ -36,9 +36,9 @@ Teensy pedalboard   ┘   ↑ Local Control Off → Donner     └─ HTTP :8080
 (MIDI ch 2)
 ```
 
-- **synth/** — the service: supersynth with a grand piano and the selected organ, MIDI input from
-  both devices (reconnecting after unplugging or power cycles), Local Control Off to the piano,
-  and the HTTP API plus the built web app. `src/presets.ts` picks each organ's six presets;
+- **synth/** — the service: supersynth with a grand piano and the selected organ. supersynth
+  plays both MIDI devices itself (reconnecting after unplugging or power cycles) and sends the
+  piano Local Control Off; the service routes them and serves the HTTP API and the web app. `src/presets.ts` picks each organ's six presets;
   `npm run balance` measures them and stores the pedal levels and organ trims in `src/balance.json`.
 - **stopmanager/** — the React phone UI, built to `dist/` and served by the synth.
 - **util/** — older helpers (GPIO note sensor, MIDI file player).

@@ -1,19 +1,16 @@
 // Turn the piano's own sound off or on from any computer it's plugged into:
 //   npm run local-control -- off   (keys only send MIDI; what the synth service does every second)
 //   npm run local-control -- on    (back to normal)
-import midi from '@julusian/midi';
+import { Synth } from '@supersynth/core';
 
-const mode = (process.argv[2] ?? 'off').toLowerCase();
-const out = new midi.Output();
-const port = [...Array(out.getPortCount()).keys()].find((i) => /piano|donner/i.test(out.getPortName(i)));
-if (port === undefined) {
+const on = (process.argv[2] ?? 'off').toLowerCase() === 'on';
+const synth = new Synth();
+const name = synth.listMidiOutputs().find((n) => /piano|donner/i.test(n));
+if (!name) {
   console.error('Piano MIDI port not found');
   process.exit(1);
 }
-out.openPort(port);
-for (let channel = 0; channel < 16; channel++) {
-  out.sendMessage([0xb0 | channel, 122, mode === 'on' ? 127 : 0]); // Local Control
-  out.sendMessage([0xb0 | channel, 123, 0]); // All Notes Off
-}
-out.closePort();
-console.log(`Local Control ${mode === 'on' ? 'ON' : 'OFF'} sent to ${out.getPortName(port)}`);
+const bytes = Array.from({ length: 16 }, (_, ch) => [0xb0 | ch, 122, on ? 127 : 0, 0xb0 | ch, 123, 0]).flat(); // Local Control, All Notes Off
+synth.sendMidi(name, bytes);
+synth.close();
+console.log(`Local Control ${on ? 'ON' : 'OFF'} sent to ${name}`);

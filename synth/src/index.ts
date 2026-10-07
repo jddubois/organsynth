@@ -4,7 +4,6 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Synth, ORGANS, type Instrument, type Organ, type OrganDefinition, type ReverbPreset } from '@supersynth/core';
-import { Devices, type Role } from './devices.ts';
 import { applyRegistration, hasPedal, organDefinition, organRegistrations, organTrim } from './organ.ts';
 import { manualStops, type Registration } from './presets.ts';
 
@@ -123,60 +122,65 @@ function applyRoom() {
 
 applyRoom();
 await synth.start();
-console.log(`Audio running (${BACKEND}) at ${synth.sampleRate} Hz on ${synth.threads} threads`);
+console.log(`Audio running (${BACKEND}) at ${synth.sampleRate} Hz on ${synth.threads} threads, real-time: ${synth.realtime}`);
 
-// If the audio output dies (e.g. JACK restarted), the engine clock stops; exit so pm2 starts a
-// fresh synth. `isRunning` alone doesn't notice a JACK shutdown.
+// If the audio output dies (e.g. JACK restarted), exit so pm2 starts a fresh synth. 'stopped'
+// covers the output failing; the engine clock standing still covers anything else.
+synth.on('stopped', (e?: Error) => {
+  console.error(`Audio output stopped${e ? `: ${e.message}` : ''}; restarting`);
+  process.exit(1);
+});
 let lastClock = -1;
 setInterval(() => {
   const clock = synth.currentTime;
-  if (clock !== lastClock && synth.isRunning && !synth.engineError) {
+  if (clock !== lastClock && synth.isRunning) {
     lastClock = clock;
     return;
   }
-  console.error(`Audio output stopped${synth.engineError ? `: ${synth.engineError}` : ''}; restarting`);
+  console.error('Audio clock stopped; restarting');
   process.exit(1);
 }, 3000);
 
 // ── MIDI ─────────────────────────────────────────────────────────────────────
 
-// Each controller (pedal) a device sends is logged once, to check pedals are wired up.
-const controllersSeen = new Set<string>();
+// The engine plays MIDI itself: one input per device (reconnected after unplugging or a power
+// cycle), each routed to an organ division or the piano. The Donner plays on channel 1 (it also
+// sends its pedals on channels 2 and 3), the pedalboard on channel 2.
+const PIANO = 'piano';
+const PEDALBOARD = 'teensy';
+await synth.enableMidi(PIANO, { optional: true });
+await synth.enableMidi(PEDALBOARD, { optional: true });
 
-function handleMidi(role: Role, [status, data1, data2]: number[]) {
-  const type = status & 0xf0;
-  if (type === 0xb0 && data1 !== 122 && !controllersSeen.has(`${role}:${data1}`)) {
-    controllersSeen.add(`${role}:${data1}`);
-    console.log(`${role} sent CC ${data1} (value ${data2})`);
-  }
-  const target = state.mode === 'piano' ? (role === 'piano' ? piano : null) : role === 'piano' ? organ.great : organ.pedal;
-  if (!target) return; // the pedalboard is silent in piano mode
-
-  if (type === 0x90 && data2 > 0) target.noteOn(data1, data2);
-  else if (type === 0x80 || type === 0x90) target.noteOff(data1);
-  else if (type === 0xb0 && target === piano && data1 < 120) {
-    if (data1 === 64) piano.sustain(data2 >= 64);
-    else piano.controlChange(data1, data2);
+function routeMidi() {
+  if (state.mode === 'organ') {
+    piano.midi(false);
+    // Notes only: the Donner's sustain pedal mustn't hold organ pipes.
+    organ.midi(
+      { great: { device: PIANO, channel: 1, controllers: false }, pedal: { device: PEDALBOARD, channel: 2, controllers: false } },
+      { presets: false },
+    );
+  } else {
+    organ.midi(false); // the pedalboard is silent in piano mode
+    piano.midi({ device: PIANO, channel: 1 }); // with its pedals: sustain (half-pedal), sostenuto, soft
   }
 }
+routeMidi();
 
-const devices = new Devices(handleMidi, (role) => {
-  // Release whatever the unplugged device was holding.
-  if (role === 'piano') {
-    piano.allNotesOff();
-    piano.sustain(false);
-    organ.great.allNotesOff();
-  } else organ.pedal.allNotesOff();
+// Local Control Off, every second: the piano's keys then only send MIDI and its own sound stays
+// off (it forgets the setting when switched off).
+const LOCAL_OFF = Array.from({ length: 16 }, (_, ch) => [0xb0 | ch, 122, 0]).flat();
+setInterval(() => synth.sendMidi(PIANO, LOCAL_OFF), 1000);
+synth.on('midiDevice', ({ device, name, connected }: { device?: string; name: string | null; connected: boolean }) => {
+  console.log(`${connected ? 'Connected' : 'Disconnected'} ${device}: ${name}`);
+  if (connected && device === PIANO) synth.sendMidi(PIANO, LOCAL_OFF);
 });
-devices.start();
 
 // ── Actions ──────────────────────────────────────────────────────────────────
 
 function setMode(mode: Mode) {
   if (mode === state.mode) return;
-  synth.allNotesOff();
-  piano.sustain(false);
   state.mode = mode;
+  routeMidi(); // held keys and pedals are let go on the instrument they were playing
   applyRoom();
 }
 
@@ -186,6 +190,7 @@ function setOrgan(id: string) {
   synth.remove(organ);
   state.organ = id;
   organ = loadOrgan(id);
+  routeMidi();
   applyRoom();
 }
 
@@ -225,7 +230,8 @@ async function snapshot() {
     rooms: ROOMS,
     pianoPreset: state.pianoPreset,
     pianoPresets: Object.keys(piano.presets()),
-    devices: devices.connected(),
+    devices: Object.fromEntries(synth.midiInputs().map((i: { device?: string; connected: boolean }) => [i.device === PIANO ? 'piano' : 'pedalboard', i.connected])),
+    xruns: synth.xruns,
     cpu: synth.cpuLoad,
     voices: synth.activeVoices,
     overloaded: synth.guardActive,
@@ -292,7 +298,6 @@ const servers = PORTS.map((port) =>
 );
 
 function shutdown() {
-  devices.close();
   servers.forEach((s) => s.close());
   synth.close();
   process.exit(0);

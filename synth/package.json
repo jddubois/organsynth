@@ -9,8 +9,7 @@
     "balance": "node --import=tsx scripts/balance.ts"
   },
   "dependencies": {
-    "@julusian/midi": "^3.6.1",
-    "@supersynth/core": "^0.3.0",
+    "@supersynth/core": "^0.4.0",
     "@supersynth/organs": "^0.3.0",
     "tsx": "^4.19.2"
   },
