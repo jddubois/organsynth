@@ -37,8 +37,10 @@ export const ROCK_ORGAN: RockInstrument = {
     { label: 'Warm', preset: { parameters: { brightness: -1 } } },
     { label: 'Classic', preset: { parameters: {} } },
     { label: 'Bright', preset: { parameters: { brightness: 1.5 } } },
-    { label: 'Overdrive', preset: { parameters: { drive: 4, driveTone: 7000, driveLevel: 0.42 } } },
-    { label: 'Heavy', preset: { parameters: { drive: 9, driveTone: 6000, driveLevel: 0.36 } } },
+    // Chords go through the one amplifier, so the drive that suits a single note turns a chord
+    // to fuzz: these are half of what they were (4 and 9).
+    { label: 'Overdrive', preset: { parameters: { drive: 2, driveTone: 7000, driveLevel: 0.56 } } },
+    { label: 'Heavy', preset: { parameters: { drive: 4, driveTone: 6000, driveLevel: 0.35 } } },
   ],
   speaker: true,
   trim: 5.5,
