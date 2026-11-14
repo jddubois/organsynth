@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { Synth, ORGANS, type Instrument, type Organ, type OrganDefinition, type ReverbPreset } from '@supersynth/core';
 import { applyRegistration, hasPedal, organDefinition, organRegistrations, organTrim } from './organ.ts';
 import { manualStops, type Registration } from './presets.ts';
+import { addRock, applyRockTone, rockAvailable, ROCK_ID, ROCK_NAME, ROCK_TONES, ROCK_TRIM_DB, SPEAKER_SPEEDS, type SpeakerSpeed } from './rock.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const UI_DIR = path.resolve(HERE, '../../stopmanager/dist');
@@ -28,6 +29,8 @@ interface State {
   room: Record<Mode, string>;
   /** The Manual → Pedal coupler. */
   pedalCoupled: boolean;
+  /** The rock organ's rotary speaker. */
+  speaker: SpeakerSpeed;
 }
 
 const ROOMS = ['auto', 'off', 'room', 'studio', 'chamber', 'hall', 'concert-hall', 'church', 'cathedral', 'plate'];
@@ -44,9 +47,11 @@ const DEFAULTS: State = {
   pianoPreset: 'default',
   room: { organ: 'auto', piano: 'auto' },
   pedalCoupled: false,
+  speaker: 'fast',
 };
 const saved = readState();
 const state: State = { ...DEFAULTS, ...saved, room: { ...DEFAULTS.room, ...saved.room } };
+if (!SPEAKER_SPEEDS.includes(state.speaker)) state.speaker = DEFAULTS.speaker;
 
 function readState(): Partial<State> {
   try {
@@ -87,19 +92,31 @@ for (const [id, def] of Object.entries(ORGANS) as [string, OrganDefinition][]) {
     // package not installed
   }
 }
+// The rock organ is in the same list (in supersynth 0.5.0 and later).
+if (await rockAvailable(synth)) organs.push({ id: ROCK_ID, name: ROCK_NAME });
 if (!organs.some((o) => o.id === state.organ)) state.organ = organs[0].id;
 
 const piano: Instrument = synth.add('grand-piano');
 if (!(state.pianoPreset in piano.presets())) state.pianoPreset = 'default';
 piano.preset(state.pianoPreset);
 
+// What organ mode plays: a church organ (stops on divisions) or the rock organ (one instrument).
 let registrations: Registration[] = [];
-let organ: Organ = loadOrgan(state.organ);
+let organ: Organ | undefined;
+let rock: Instrument | undefined;
+loadOrgan(state.organ);
 
-function loadOrgan(id: string): Organ {
+function loadOrgan(id: string) {
+  const started = Date.now();
+  if (id === ROCK_ID) {
+    state.registration = Math.min(state.registration, ROCK_TONES.length - 1);
+    rock = addRock(synth);
+    applyRockTone(rock, state.registration, state.speaker);
+    console.log(`Rock organ ready to play in ${Date.now() - started} ms`);
+    return;
+  }
   registrations = organRegistrations(id);
   state.registration = Math.min(state.registration, registrations.length - 1);
-  const started = Date.now();
   const added = synth.add(organDefinition(id), { preset: registrations[state.registration].preset });
   applyRegistration(added, registrations, state.registration, state.pedalCoupled);
   console.log(`Organ ${id} ready to play in ${Date.now() - started} ms`);
@@ -107,17 +124,24 @@ function loadOrgan(id: string): Organ {
     () => console.log(`Organ ${id}: every stop loaded in ${Date.now() - started} ms`),
     (e: Error) => console.error(`Organ ${id}: ${e.message}`),
   );
-  return added;
+  organ = added;
+}
+
+function unloadOrgan() {
+  if (organ) synth.remove(organ);
+  if (rock) synth.remove(rock);
+  organ = rock = undefined;
 }
 
 function applyRoom() {
   // The room picked for this mode, or the instrument's own (the organ recordings already carry
   // their church), and the level: per mode, and per organ so that every organ is as loud.
-  const own = state.mode === 'organ' ? (organ.definition.reverb ?? 'church') : (piano.definition.reverb ?? 'hall');
+  const playing = state.mode === 'piano' ? piano : (organ ?? rock)!;
+  const own = playing.definition.reverb ?? (organ ? 'church' : 'hall');
   const room = state.room[state.mode];
   const reverb = room === 'auto' ? own : room === 'off' ? false : (room as ReverbPreset);
-  const volume = VOLUME.organ * (state.mode === 'organ' ? organTrim(organ.definition.id) : 1);
-  synth.set({ reverb, volume: state.mode === 'organ' ? volume : VOLUME.piano });
+  const trim = organ ? organTrim(organ.definition.id) : 10 ** (ROCK_TRIM_DB / 20);
+  synth.set({ reverb, volume: state.mode === 'organ' ? VOLUME.organ * trim : VOLUME.piano });
 }
 
 applyRoom();
@@ -152,19 +176,36 @@ await synth.enableMidi(PIANO, { optional: true });
 await synth.enableMidi(PEDALBOARD, { optional: true });
 
 function routeMidi() {
+  // Notes only: the Donner's sustain pedal mustn't hold organ pipes (on the rock organ it
+  // switches the speaker's speed instead).
+  const keys = { device: PIANO, channel: 1, controllers: false };
+  const pedals = { device: PEDALBOARD, channel: 2, controllers: false };
   if (state.mode === 'organ') {
     piano.midi(false);
-    // Notes only: the Donner's sustain pedal mustn't hold organ pipes.
-    organ.midi(
-      { great: { device: PIANO, channel: 1, controllers: false }, pedal: { device: PEDALBOARD, channel: 2, controllers: false } },
-      { presets: false },
-    );
+    organ?.midi({ great: keys, pedal: pedals }, { presets: false });
+    rock?.midi([keys, pedals]); // the pedalboard plays the rock organ's bass
   } else {
-    organ.midi(false); // the pedalboard is silent in piano mode
+    organ?.midi(false); // the pedalboard is silent in piano mode
+    rock?.midi(false);
     piano.midi({ device: PIANO, channel: 1 }); // with its pedals: sustain (half-pedal), sostenuto, soft
   }
 }
 routeMidi();
+
+// On the rock organ the sustain pedal is the speaker's footswitch: each press changes between
+// slow and fast (and starts a stopped speaker). The Donner sends its pedals on three channels
+// at once, so only the pedal going down counts, once.
+let sustainDown = false;
+synth.on('midi', (e: { type: string; device?: string; controller?: number; value?: number }) => {
+  if (e.type !== 'cc' || e.device !== PIANO || e.controller !== 64) return;
+  const down = (e.value ?? 0) >= 64;
+  if (down === sustainDown) return;
+  sustainDown = down;
+  if (down && rock && state.mode === 'organ') {
+    setSpeaker(state.speaker === 'fast' ? 'slow' : 'fast');
+    saveState();
+  }
+});
 
 // Local Control Off, every second: the piano's keys then only send MIDI and its own sound stays
 // off (it forgets the setting when switched off).
@@ -186,23 +227,30 @@ function setMode(mode: Mode) {
 
 function setOrgan(id: string) {
   if (!organs.some((o) => o.id === id)) throw new HttpError(400, `Unknown organ ${id}`);
-  if (id === organ.definition.id) return;
-  synth.remove(organ);
+  if (id === state.organ) return;
+  unloadOrgan();
   state.organ = id;
-  organ = loadOrgan(id);
+  loadOrgan(id);
   routeMidi();
   applyRoom();
 }
 
 function setRegistration(index: number) {
-  if (!(index in registrations)) throw new HttpError(400, `Unknown preset ${index + 1}`);
+  if (!(index in (rock ? ROCK_TONES : registrations))) throw new HttpError(400, `Unknown preset ${index + 1}`);
   state.registration = index;
-  applyRegistration(organ, registrations, index, state.pedalCoupled);
+  if (rock) applyRockTone(rock, index, state.speaker);
+  else applyRegistration(organ!, registrations, index, state.pedalCoupled);
 }
 
 function setPedalCoupled(on: boolean) {
   state.pedalCoupled = on;
-  applyRegistration(organ, registrations, state.registration, on);
+  if (organ) applyRegistration(organ, registrations, state.registration, on);
+}
+
+function setSpeaker(speed: SpeakerSpeed) {
+  if (!SPEAKER_SPEEDS.includes(speed)) throw new HttpError(400, `Unknown speaker speed ${speed}`);
+  state.speaker = speed;
+  rock?.set({ leslie: speed });
 }
 
 function setRoom(room: string) {
@@ -223,10 +271,16 @@ async function snapshot() {
     organ: state.organ,
     organs,
     registration: state.registration,
-    registrations: registrations.map((r) => ({ label: r.label, manual: manualStops(r.preset), pedal: r.preset.pedal })),
+    registrations: rock
+      ? ROCK_TONES.map((t) => ({ label: t.label, manual: [], pedal: [] }))
+      : registrations.map((r) => ({ label: r.label, manual: manualStops(r.preset), pedal: r.preset.pedal })),
     room: state.room[state.mode],
-    pedalCoupled: state.pedalCoupled || !hasPedal(organ),
-    hasPedal: hasPedal(organ),
+    // The rock organ has no stops to couple: the pedalboard plays it as the keyboard does.
+    pedalCoupled: organ ? state.pedalCoupled || !hasPedal(organ) : true,
+    hasPedal: organ ? hasPedal(organ) : false,
+    /** The rock organ's rotary speaker, when it is the organ being played. */
+    speaker: rock ? state.speaker : undefined,
+    speakerSpeeds: SPEAKER_SPEEDS,
     rooms: ROOMS,
     pianoPreset: state.pianoPreset,
     pianoPresets: Object.keys(piano.presets()),
@@ -254,6 +308,7 @@ const ACTIONS: Record<string, (body: any) => void | Promise<void>> = {
   '/api/piano-preset': (b) => setPianoPreset(String(b.preset)),
   '/api/room': (b) => setRoom(String(b.room)),
   '/api/pedal-coupler': (b) => setPedalCoupled(Boolean(b.on)),
+  '/api/speaker': (b) => setSpeaker(String(b.speed) as SpeakerSpeed),
 };
 
 const MIME: Record<string, string> = {

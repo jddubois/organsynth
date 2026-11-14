@@ -16,6 +16,9 @@ interface State {
   hasPedal: boolean;
   pianoPreset: string;
   pianoPresets: string[];
+  /** The rock organ's rotary speaker; absent on the church organs. */
+  speaker?: string;
+  speakerSpeeds: string[];
 }
 
 // Served by the synth itself, so the API is on the same origin.
@@ -204,8 +207,29 @@ function App() {
         </div>
       )}
 
+      {/* The rock organ's rotary speaker (the piano's sustain pedal also switches slow and fast) */}
+      {state.mode === "organ" && state.speaker && (
+        <div className="w-full max-w-lg mx-auto flex items-center gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-organ-text-muted w-16">ROTOR</h2>
+          <div className="flex-1 grid grid-cols-3 gap-2">
+            {state.speakerSpeeds.map((speed) => (
+              <button
+                key={speed}
+                onClick={() => {
+                  setState({ ...state, speaker: speed });
+                  run("speaker", { speed });
+                }}
+                className={`${tile(state.speaker === speed)} h-11 text-base font-bold capitalize`}
+              >
+                {speed}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Manual → Pedal coupler (always on for an organ without pedal stops) */}
-      {state.mode === "organ" && (
+      {state.mode === "organ" && !state.speaker && (
         <div className="w-full max-w-lg mx-auto flex items-center gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-widest text-organ-text-muted w-16">PEDAL</h2>
           <button

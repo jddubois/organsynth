@@ -4,7 +4,7 @@ A pipe organ and piano on a Raspberry Pi 5, played from a Donner DEP-20 digital 
 pedalboard, with the sound coming out of the piano's own speakers.
 
 Sound comes from [supersynth](https://www.npmjs.com/package/@supersynth/core): 17 sampled church
-organs (`@supersynth/organs`) and a grand piano. The digital piano's internal sound is switched off
+organs (`@supersynth/organs`), a rock organ with its rotary speaker, and a grand piano. The digital piano's internal sound is switched off
 (MIDI Local Control Off, re-sent every second), so its keys only play the Pi.
 
 ## Playing
@@ -20,6 +20,11 @@ Open **http://patchbox.local:5173** (or `:8080`) on a phone on the same network.
   the pedal level measured and set to sit under the manual.
 - **Manual → Pedal** couples the manual to the pedal (the pedalboard also plays the manual
   stops); off by default. The Green Positiv has no pedal stops, so it's always coupled.
+- **Rock Organ** (last in the organ list, with supersynth 0.5.0 or later): a tonewheel organ
+  through a rotary speaker. Its six presets are tones: Mellow, Warm, Classic, Bright, Overdrive,
+  Heavy. **Rotor** sets the speaker's speed: Slow, Fast or Stop; the rotors take a moment to
+  change, as the real ones do. The piano's sustain pedal is the footswitch: each press changes
+  between slow and fast. The pedalboard plays the same organ, as its bass.
 - **Room**: Default (the organ's own church, or the piano's hall), None, or one of supersynth's rooms; the piano has
   its own setting.
 - **Piano presets**: default, bright, mellow, felt, concert, studio, honky-tonk, long sustain.

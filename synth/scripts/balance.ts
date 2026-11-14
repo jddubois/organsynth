@@ -4,10 +4,13 @@
 // For each registration, the pedal's expression is set so a pedal note sits PEDAL_BELOW_DB under
 // a manual triad (pedal not coupled to the manual), and each organ gets a trim so its principal chorus is as loud as the others'.
 // Levels are measured above 100 Hz: what the piano's speakers actually reproduce.
+//   npm run balance -- rock-organ   prints the rock organ's tones against a church organ's
+//                                   principal chorus (ROCK_TRIM_DB and the driveLevels in src/rock.ts)
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { Synth, ORGANS, type OrganDefinition } from '@supersynth/core';
 import { organDefinition, type Balance } from '../src/organ.ts';
 import { registrations, type Registration } from '../src/presets.ts';
+import { addRock, applyRockTone, ROCK_ID, ROCK_TONES, ROCK_TRIM_DB } from '../src/rock.ts';
 
 // 6 dB: by ear on the Donner's speakers (2 dB measured right but sounded 4 dB too loud).
 const PEDAL_BELOW_DB = 6;
@@ -15,14 +18,23 @@ const MAX_TRIM_DB = 6;
 const TRIM_SLOT = 3; // principal chorus
 const FILE = new URL('../src/balance.json', import.meta.url);
 
+const TRIADS = [[60, 64, 67], [55, 59, 62]];
+
 function level(def: OrganDefinition, reg: Registration, part: 'great' | 'pedal', chords: number[][], expression = 1) {
-  let power = 0;
-  for (const notes of chords) {
-    const synth = new Synth({ reverb: def.reverb ?? 'church', sampleRate: 48000 });
+  return measure(chords, def.reverb ?? 'church', 2.5, (synth, notes) => {
     const organ = synth.add(def, { preset: reg.preset, preload: false });
     organ.pedal.expression(expression);
     organ[part].play(notes, { duration: 2.5 });
-    const x = synth.render(2.5).left.subarray(24000);
+  });
+}
+
+/** Level (dB, above 100 Hz) of the last `seconds - 0.5` s of each chord, as `play` plays it. */
+function measure(chords: number[][], reverb: OrganDefinition['reverb'], seconds: number, play: (synth: Synth, notes: number[]) => void) {
+  let power = 0;
+  for (const notes of chords) {
+    const synth = new Synth({ reverb: reverb ?? 'church', sampleRate: 48000 });
+    play(synth, notes);
+    const x = synth.render(seconds).left.subarray(24000);
     synth.close();
     // second-order 100 Hz high-pass (two one-pole stages)
     const k = Math.exp((-2 * Math.PI * 100) / 48000);
@@ -41,6 +53,23 @@ const db = (gain: number) => 20 * Math.log10(gain);
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 const result: Record<string, Balance> = existsSync(FILE) ? JSON.parse(readFileSync(FILE, 'utf8')) : {};
+if (process.argv[2] === ROCK_ID) {
+  // The median organ's principal chorus, from an organ whose trim wasn't clamped; the rock
+  // organ's level is taken over whole turns of its speaker, once the rotors are at speed.
+  const ref = Object.keys(result).find((id) => Math.abs(result[id].trim) < MAX_TRIM_DB && id in ORGANS)!;
+  const def = organDefinition(ref);
+  const median = level(def, registrations(def)[TRIM_SLOT], 'great', TRIADS) + result[ref].trim;
+  console.log(`Median principal chorus (from ${ref}): ${median.toFixed(1)} dB`);
+  for (const [i, tone] of ROCK_TONES.entries()) {
+    const l = measure(TRIADS, 'room', 12, (synth, notes) => {
+      const rock = addRock(synth);
+      applyRockTone(rock, i, 'fast');
+      rock.play(notes, { duration: 12 });
+    });
+    console.log(`Rock organ ${tone.label}: ${l.toFixed(1)} dB; with ROCK_TRIM_DB ${ROCK_TRIM_DB}: ${(l + ROCK_TRIM_DB - median).toFixed(1)} dB from the median`);
+  }
+  process.exit(0);
+}
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(ORGANS);
 const chorus: Record<string, number> = {};
 
@@ -48,7 +77,7 @@ for (const id of ids) {
   const def = organDefinition(id);
   const pedal: number[] = [];
   for (const [slot, reg] of registrations(def).entries()) {
-    const manual = level(def, reg, 'great', [[60, 64, 67], [55, 59, 62]]);
+    const manual = level(def, reg, 'great', TRIADS);
     if (slot === TRIM_SLOT) chorus[id] = manual;
     const target = manual - PEDAL_BELOW_DB;
     // Twice: when the pedal is coupled to the manual, the expression only scales part of it.

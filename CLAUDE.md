@@ -40,6 +40,15 @@ One Node process, run by pm2 (`ecosystem.config.js`, app `organsynth`):
   (6 by ear on the Donner; uncoupled)
   (levels above 100 Hz, what the speakers reproduce), and per-organ trims (±6 dB) that match each
   organ's principal chorus to the median. Re-run it after changing presets or supersynth models.
+- `src/rock.ts` — the rock organ (`rock-organ`, a supersynth *instrument*, not an organ with
+  stops; in supersynth 0.5.0 and later, and left out of the list when the installed supersynth
+  doesn't have it). It is the last entry of the organ list. Its six presets are `ROCK_TONES`
+  (parameters: brightness, drive), the rotary speaker's speed (`leslie`: slow, fast, stop) is
+  its own setting (`state.speaker`, `POST /api/speaker {speed}`), and `ROCK_TRIM_DB` levels it
+  with the church organs (`npm run balance -- rock-organ` prints the measurement). In
+  `index.ts` organ mode plays either `organ` (an `Organ`) or `rock` (an `Instrument`), never
+  both. The Donner and the pedalboard both play the rock organ, notes only; the Donner's sustain
+  pedal (CC 64, read from the `'midi'` event) switches the speaker between slow and fast.
 - `scripts/local-control.ts` — `npm run local-control -- off|on` from any computer the piano is on.
 
 Organ mode routes the Donner (channel 1) to `organ.great` and the pedalboard (channel 2) to
@@ -51,13 +60,14 @@ on/off (0/127) and are sent on channels 1, 2 and 3 at once. supersynth's ALSA cl
 amidiminder's connect-everything rules can't cross the piano and pedalboard.
 
 HTTP API: `GET /api/state`; `POST /api/mode {mode}`, `/api/organ {organ}`,
-`/api/registration {registration}`, `/api/piano-preset {preset}`, `/api/room {room}`, `/api/pedal-coupler {on}`. Each returns
+`/api/registration {registration}`, `/api/piano-preset {preset}`, `/api/room {room}`, `/api/pedal-coupler {on}`,
+`/api/speaker {speed}` (the rock organ's rotary speaker). Each returns
 the new state.
 Volume is set on the piano; the Pi's DAC stays at 0 dB.
 
 **stopmanager/** (React/Vite/Tailwind) — the phone UI: organ/piano switch, organ picker (‹ › and a
 list), the six presets by name (equal-size buttons; `src/FitText.tsx` shrinks long names), piano
-presets, Manual → Pedal coupler, room picker. `npm run build` produces `dist/`,
+presets, Manual → Pedal coupler (for the rock organ: the Rotor row, slow / fast / stop), room picker. `npm run build` produces `dist/`,
 which the synth serves. `npm run dev` proxies `/api` to a synth on localhost:8080.
 
 **util/** — older Python/shell helpers (GPIO note sensor, MIDI file player).
