@@ -4,13 +4,13 @@
 // For each registration, the pedal's expression is set so a pedal note sits PEDAL_BELOW_DB under
 // a manual triad (pedal not coupled to the manual), and each organ gets a trim so its principal chorus is as loud as the others'.
 // Levels are measured above 100 Hz: what the piano's speakers actually reproduce.
-//   npm run balance -- rock-organ   prints the rock organ's tones against a church organ's
-//                                   principal chorus (ROCK_TRIM_DB and the driveLevels in src/rock.ts)
+//   npm run balance -- rock    prints the tones of the rock organ and the rock synth against a
+//                              church organ's principal chorus (their `trim` in src/rock.ts)
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { Synth, ORGANS, type OrganDefinition } from '@supersynth/core';
 import { organDefinition, type Balance } from '../src/organ.ts';
 import { registrations, type Registration } from '../src/presets.ts';
-import { addRock, applyRockTone, ROCK_ID, ROCK_TONES, ROCK_TRIM_DB } from '../src/rock.ts';
+import { addRock, applyRockTone, ROCK_INSTRUMENTS } from '../src/rock.ts';
 
 // 6 dB: by ear on the Donner's speakers (2 dB measured right but sounded 4 dB too loud).
 const PEDAL_BELOW_DB = 6;
@@ -53,20 +53,22 @@ const db = (gain: number) => 20 * Math.log10(gain);
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 const result: Record<string, Balance> = existsSync(FILE) ? JSON.parse(readFileSync(FILE, 'utf8')) : {};
-if (process.argv[2] === ROCK_ID) {
+if (process.argv[2] === 'rock') {
   // The median organ's principal chorus, from an organ whose trim wasn't clamped; the rock
-  // organ's level is taken over whole turns of its speaker, once the rotors are at speed.
+  // instruments' level is taken over 11 s (whole turns of the organ's speaker, at speed).
   const ref = Object.keys(result).find((id) => Math.abs(result[id].trim) < MAX_TRIM_DB && id in ORGANS)!;
   const def = organDefinition(ref);
   const median = level(def, registrations(def)[TRIM_SLOT], 'great', TRIADS) + result[ref].trim;
   console.log(`Median principal chorus (from ${ref}): ${median.toFixed(1)} dB`);
-  for (const [i, tone] of ROCK_TONES.entries()) {
-    const l = measure(TRIADS, 'room', 12, (synth, notes) => {
-      const rock = addRock(synth);
-      applyRockTone(rock, i, 'fast');
-      rock.play(notes, { duration: 12 });
-    });
-    console.log(`Rock organ ${tone.label}: ${l.toFixed(1)} dB; with ROCK_TRIM_DB ${ROCK_TRIM_DB}: ${(l + ROCK_TRIM_DB - median).toFixed(1)} dB from the median`);
+  for (const r of ROCK_INSTRUMENTS) {
+    for (const [i, tone] of r.tones.entries()) {
+      const l = measure(TRIADS, 'room', 12, (synth, notes) => {
+        const rock = addRock(synth, r);
+        applyRockTone(r, rock, i, 'fast');
+        rock.play(notes, { duration: 12, velocity: 100 });
+      });
+      console.log(`${r.name} ${tone.label}: ${l.toFixed(1)} dB; with its trim of ${r.trim} dB: ${(l + r.trim - median).toFixed(1)} dB from the median`);
+    }
   }
   process.exit(0);
 }

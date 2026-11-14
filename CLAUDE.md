@@ -40,15 +40,18 @@ One Node process, run by pm2 (`ecosystem.config.js`, app `organsynth`):
   (6 by ear on the Donner; uncoupled)
   (levels above 100 Hz, what the speakers reproduce), and per-organ trims (±6 dB) that match each
   organ's principal chorus to the median. Re-run it after changing presets or supersynth models.
-- `src/rock.ts` — the rock organ (`rock-organ`, a supersynth *instrument*, not an organ with
-  stops; in supersynth 0.5.0 and later, and left out of the list when the installed supersynth
-  doesn't have it). It is the last entry of the organ list. Its six presets are `ROCK_TONES`
-  (parameters: brightness, drive), the rotary speaker's speed (`leslie`: slow, fast, stop) is
-  its own setting (`state.speaker`, `POST /api/speaker {speed}`), and `ROCK_TRIM_DB` levels it
-  with the church organs (`npm run balance -- rock-organ` prints the measurement). In
-  `index.ts` organ mode plays either `organ` (an `Organ`) or `rock` (an `Instrument`), never
-  both. The Donner and the pedalboard both play the rock organ, notes only; the Donner's sustain
-  pedal (CC 64, read from the `'midi'` event) switches the speaker between slow and fast.
+- `src/rock.ts` — the rock instruments, `ROCK_INSTRUMENTS`: the rock organ (`rock-organ`) and the
+  rock synth (`rock-synth`). Both are supersynth *instruments*, not organs with stops, in
+  supersynth 0.5.0 and later, and each is left out of the list when the installed supersynth
+  doesn't have it. They are the last entries of the organ list. Each has six `tones` as its
+  presets (one of the instrument's own presets by name, or parameters on its default sound) and
+  a `trim` that levels it with the church organs (`npm run balance -- rock` prints the
+  measurements). The rock organ has a rotary speaker (`speaker: true`): its speed (`leslie`:
+  slow, fast, stop) is its own setting (`state.speaker`, `POST /api/speaker {speed}`), and the
+  Donner's sustain pedal (CC 64, read from the `'midi'` event) switches it between slow and
+  fast, so the rock organ gets notes only. The rock synth gets the Donner's controllers too:
+  its sustain pedal sustains. The pedalboard plays both, notes only. In `index.ts` organ mode
+  plays either `organ` (an `Organ`) or `rock` (an `Instrument`, with `rockDef`), never both.
 - `scripts/local-control.ts` — `npm run local-control -- off|on` from any computer the piano is on.
 
 Organ mode routes the Donner (channel 1) to `organ.great` and the pedalboard (channel 2) to
