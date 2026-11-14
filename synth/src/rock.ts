@@ -82,8 +82,4 @@ export function applyRockTone(rock: RockInstrument, instrument: Instrument, inde
   const { preset } = rock.tones[index];
   if (typeof preset === 'string') instrument.preset(preset);
   else instrument.preset(rock.speaker ? { ...preset, parameters: { ...preset.parameters, leslie: speaker } } : preset);
-  // supersynth 0.5.0: a legato preset (the synth's Lead) makes the engine monophonic, and going
-  // to another preset takes legato back but leaves it monophonic, so every tone after Lead
-  // played one note at a time. Say so explicitly.
-  if (!instrument.get('legato') && !instrument.get('mono')) instrument.set({ mono: false });
 }
